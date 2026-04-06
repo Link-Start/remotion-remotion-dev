@@ -16,8 +16,9 @@ export const canUseWebFsWriter = async () => {
 			},
 		);
 
-		const canUse = fileHandle.createWritable !== undefined;
-		return canUse;
+		const writable = await fileHandle.createWritable();
+		await writable.close();
+		return true;
 	} catch {
 		return false;
 	}

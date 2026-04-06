@@ -7,14 +7,19 @@ export const canUseWebFsWriter = async () => {
     return false;
   }
 
-  const directoryHandle = await navigator.storage.getDirectory();
-  const fileHandle = await directoryHandle.getFileHandle(
-    "remotion-probe-web-fs-support",
-    {
-      create: true,
-    },
-  );
+  try {
+    const directoryHandle = await navigator.storage.getDirectory();
+    const fileHandle = await directoryHandle.getFileHandle(
+      "remotion-probe-web-fs-support",
+      {
+        create: true,
+      },
+    );
 
-  const canUse = fileHandle.createWritable !== undefined;
-  return canUse;
+    const writable = await fileHandle.createWritable();
+    await writable.close();
+    return true;
+  } catch {
+    return false;
+  }
 };
