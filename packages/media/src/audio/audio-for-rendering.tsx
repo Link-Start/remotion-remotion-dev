@@ -11,7 +11,7 @@ import {
 } from 'remotion';
 import {useMaxMediaCacheSize} from '../caches';
 import {applyVolume} from '../convert-audiodata/apply-volume';
-import {TARGET_SAMPLE_RATE} from '../convert-audiodata/resample-audiodata';
+import {getTargetSampleRate} from '../convert-audiodata/resample-audiodata';
 import {frameForVolumeProp} from '../looped-frame';
 import {callOnErrorAndResolve} from '../on-error';
 import {extractFrameViaBroadcastChannel} from '../video-extraction/extract-frame-via-broadcast-channel';
@@ -38,6 +38,7 @@ export const AudioForRendering: React.FC<AudioProps> = ({
 	trimBefore,
 	onError,
 	credentials,
+	requestInit,
 }) => {
 	const defaultLogLevel = Internals.useLogLevel();
 	const logLevel = overriddenLogLevel ?? defaultLogLevel;
@@ -64,6 +65,7 @@ export const AudioForRendering: React.FC<AudioProps> = ({
 
 	const {delayRender, continueRender} = useDelayRender();
 	const [replaceWithHtml5Audio, setReplaceWithHtml5Audio] = useState(false);
+	const [initialRequestInit] = useState(requestInit);
 
 	const sequenceContext = useContext(Internals.SequenceContext);
 
@@ -125,12 +127,13 @@ export const AudioForRendering: React.FC<AudioProps> = ({
 			includeVideo: false,
 			isClientSideRendering: environment.isClientSideRendering,
 			loop: loop ?? false,
-			audioStreamIndex: audioStreamIndex ?? 0,
+			audioStreamIndex: audioStreamIndex ?? null,
 			trimAfter,
 			trimBefore,
 			fps,
 			maxCacheSize,
 			credentials,
+			requestInit: initialRequestInit,
 		})
 			.then((result) => {
 				const handleError = (
@@ -224,7 +227,8 @@ export const AudioForRendering: React.FC<AudioProps> = ({
 							: Array.from(audio.data),
 						frame: absoluteFrame,
 						timestamp: audio.timestamp,
-						duration: (audio.numberOfFrames / TARGET_SAMPLE_RATE) * 1_000_000,
+						duration:
+							(audio.numberOfFrames / getTargetSampleRate()) * 1_000_000,
 						toneFrequency: toneFrequency ?? 1,
 					});
 				}
@@ -269,6 +273,7 @@ export const AudioForRendering: React.FC<AudioProps> = ({
 		audioEnabled,
 		onError,
 		credentials,
+		initialRequestInit,
 	]);
 
 	if (replaceWithHtml5Audio) {
@@ -290,6 +295,7 @@ export const AudioForRendering: React.FC<AudioProps> = ({
 				acceptableTimeShiftInSeconds={
 					fallbackHtml5AudioProps?.acceptableTimeShiftInSeconds
 				}
+				preservePitch={fallbackHtml5AudioProps?.preservePitch ?? true}
 				name={name}
 				showInTimeline={showInTimeline}
 			/>

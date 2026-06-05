@@ -19,7 +19,7 @@ import {
 } from '../undo-stack';
 import {suppressBundlerUpdateForFile} from '../watch-ignore-next-change';
 import {checkIfTypeScriptFile} from './can-update-default-props';
-import {warnAboutPrettierOnce} from './log-update';
+import {warnAboutPrettierOnce} from './log-updates/log-update';
 
 export const updateDefaultPropsHandler: ApiHandler<
 	UpdateDefaultPropsRequest,
@@ -57,19 +57,20 @@ export const updateDefaultPropsHandler: ApiHandler<
 		pushToUndoStack({
 			filePath: projectInfo.rootFile,
 			oldContents: fileContents,
+			newContents: null,
 			logLevel,
 			remotionRoot,
 			logLine,
 			description: {
-				undoMessage: `Undid default props update for "${compositionId}"`,
-				redoMessage: `Redid default props update for "${compositionId}"`,
+				undoMessage: `↩️  default props update for "${compositionId}"`,
+				redoMessage: `↪️  default props update for "${compositionId}"`,
 			},
 			entryType: 'default-props',
 			suppressHmrOnFileRestore: true,
 		});
 		suppressUndoStackInvalidation(projectInfo.rootFile);
 		suppressBundlerUpdateForFile(projectInfo.rootFile);
-		writeFileAndNotifyFileWatchers(projectInfo.rootFile, output);
+		writeFileAndNotifyFileWatchers(projectInfo.rootFile, output, undefined);
 
 		const locationLabel = formatLogFileLocation({
 			remotionRoot,
@@ -78,7 +79,7 @@ export const updateDefaultPropsHandler: ApiHandler<
 		});
 		RenderInternals.Log.info(
 			{indent: false, logLevel},
-			`${RenderInternals.chalk.blueBright(`${locationLabel}:`)} Updated default props for "${compositionId}"`,
+			`${RenderInternals.chalk.blueBright(`${locationLabel}`)} Updated default props for "${compositionId}"`,
 		);
 		if (!formatted) {
 			warnAboutPrettierOnce(logLevel);

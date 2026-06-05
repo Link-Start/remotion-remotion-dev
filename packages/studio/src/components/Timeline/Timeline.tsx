@@ -1,39 +1,45 @@
-import React, {useContext, useMemo} from 'react';
+import React, {useCallback, useContext, useMemo, useState} from 'react';
 import {Internals} from 'remotion';
 import {calculateTimeline} from '../../helpers/calculate-timeline';
 import {StudioServerConnectionCtx} from '../../helpers/client-id';
 import {BACKGROUND} from '../../helpers/colors';
 import type {TrackWithHash} from '../../helpers/get-timeline-sequence-sort-key';
-import {
-	getExpandedTrackHeight,
-	getTimelineLayerHeight,
-	TIMELINE_ITEM_BORDER_BOTTOM,
-} from '../../helpers/timeline-layout';
-import {ExpandedTracksContext} from '../ExpandedTracksProvider';
+import {useIsStill} from '../../helpers/is-current-selected-still';
+import {useCachedCompositionComponentInfo} from '../../helpers/open-in-editor';
+import {callApi} from '../call-api';
+import {ContextMenu} from '../ContextMenu';
+import {importAssets, pickFilesToImport} from '../import-assets';
 import {VERTICAL_SCROLLBAR_CLASSNAME} from '../Menu/is-menu-item';
+import type {ComboboxValue} from '../NewComposition/ComboBox';
+import {showNotification} from '../Notifications/NotificationCenter';
 import {SplitterContainer} from '../Splitter/SplitterContainer';
 import {SplitterElement} from '../Splitter/SplitterElement';
 import {SplitterHandle} from '../Splitter/SplitterHandle';
-import {isTrackHidden} from './is-collapsed';
-import {
-	MAX_TIMELINE_TRACKS,
-	MAX_TIMELINE_TRACKS_NOTICE_HEIGHT,
-} from './MaxTimelineTracks';
+import {MAX_TIMELINE_TRACKS} from './MaxTimelineTracks';
+import {SequencePropsObserver} from './SequencePropsObserver';
+import {shouldShowTrackInTimeline} from './should-show-track-in-timeline';
+import {SubscribeToNodePaths} from './SubscribeToNodePaths';
 import {timelineVerticalScroll} from './timeline-refs';
 import {TimelineDragHandler} from './TimelineDragHandler';
+import {TimelineHeightContainer} from './TimelineHeightContainer';
+import {TimelineInOutDragHandler} from './TimelineInOutDragHandler';
 import {TimelineInOutPointer} from './TimelineInOutPointer';
 import {TimelineList} from './TimelineList';
 import {TimelinePinchZoom} from './TimelinePinchZoom';
 import {TimelinePlayCursorSyncer} from './TimelinePlayCursorSyncer';
 import {TimelineScrollable} from './TimelineScrollable';
+import {
+	TimelineSelectAllKeybindings,
+	useTimelineSelection,
+} from './TimelineSelection';
 import {TimelineSlider} from './TimelineSlider';
 import {
-	TIMELINE_TIME_INDICATOR_HEIGHT,
 	TimelineTimeIndicators,
 	TimelineTimePlaceholders,
 } from './TimelineTimeIndicators';
 import {TimelineTracks} from './TimelineTracks';
 import {TimelineWidthProvider} from './TimelineWidthProvider';
+import {useResolvedStack} from './use-resolved-stack';
 
 const container: React.CSSProperties = {
 	minHeight: '100%',
@@ -46,14 +52,187 @@ const container: React.CSSProperties = {
 
 const noop = () => undefined;
 
+const TimelineClearSelectionArea: React.FC<{
+	readonly children: React.ReactNode;
+}> = ({children}) => {
+	const {clearSelection} = useTimelineSelection();
+	const {compositions, canvasContent} = useContext(
+		Internals.CompositionManager,
+	);
+	const videoConfig = Internals.useUnsafeVideoConfig();
+	const [isAddingSolid, setIsAddingSolid] = useState(false);
+	const [isAddingAsset, setIsAddingAsset] = useState(false);
+	const {previewServerState} = useContext(StudioServerConnectionCtx);
+	const previewConnected = previewServerState.type === 'connected';
+
+	const currentCompositionId =
+		canvasContent?.type === 'composition' ? canvasContent.compositionId : null;
+	const currentComposition = useMemo(() => {
+		if (currentCompositionId === null) {
+			return null;
+		}
+
+		return (
+			compositions.find(
+				(composition) => composition.id === currentCompositionId,
+			) ?? null
+		);
+	}, [compositions, currentCompositionId]);
+	const resolvedCompositionLocation = useResolvedStack(
+		currentComposition?.stack ?? null,
+	);
+	const compositionFile = resolvedCompositionLocation?.source ?? null;
+	const compositionComponentInfo = useCachedCompositionComponentInfo({
+		compositionFile,
+		compositionId: currentCompositionId,
+	});
+
+	// Selection-triggering click handlers in children call e.stopPropagation(),
+	// so any pointerdown that bubbles up here is by definition on empty space
+	// and should clear the current selection.
+	const onPointerDown = useCallback(
+		(e: React.PointerEvent<HTMLDivElement>) => {
+			if (e.button !== 0) {
+				return;
+			}
+
+			clearSelection();
+		},
+		[clearSelection],
+	);
+
+	const canInsertSolid =
+		previewConnected &&
+		compositionComponentInfo?.canAddSequence === true &&
+		currentCompositionId !== null &&
+		compositionFile !== null &&
+		videoConfig !== null &&
+		!isAddingSolid;
+
+	const canInsertAsset =
+		previewConnected &&
+		!window.remotion_isReadOnlyStudio &&
+		compositionComponentInfo?.canAddSequence === true &&
+		currentCompositionId !== null &&
+		compositionFile !== null &&
+		!isAddingAsset;
+
+	const insertSolid = useCallback(async () => {
+		if (
+			!canInsertSolid ||
+			currentCompositionId === null ||
+			compositionFile === null ||
+			videoConfig === null
+		) {
+			return;
+		}
+
+		setIsAddingSolid(true);
+		try {
+			const result = await callApi('/api/insert-jsx-element', {
+				compositionFile,
+				compositionId: currentCompositionId,
+				element: {
+					type: 'solid',
+					width: videoConfig.width,
+					height: videoConfig.height,
+				},
+			});
+
+			if (result.success) {
+				showNotification('Added <Solid> to source file', 2000);
+				return;
+			}
+
+			showNotification(result.reason, 4000);
+		} catch (err) {
+			showNotification((err as Error).message, 4000);
+		} finally {
+			setIsAddingSolid(false);
+		}
+	}, [canInsertSolid, compositionFile, currentCompositionId, videoConfig]);
+
+	const insertAsset = useCallback(async () => {
+		if (
+			!canInsertAsset ||
+			currentCompositionId === null ||
+			compositionFile === null
+		) {
+			return;
+		}
+
+		const files = await pickFilesToImport();
+		if (files.length === 0) {
+			return;
+		}
+
+		setIsAddingAsset(true);
+		try {
+			await importAssets({
+				files,
+				compositionFile,
+				compositionId: currentCompositionId,
+			});
+		} finally {
+			setIsAddingAsset(false);
+		}
+	}, [canInsertAsset, compositionFile, currentCompositionId]);
+
+	const contextMenuItems = useMemo((): ComboboxValue[] => {
+		return [
+			{
+				type: 'item',
+				id: 'insert-solid',
+				label: 'Add <Solid>',
+				value: 'insert-solid',
+				onClick: insertSolid,
+				keyHint: null,
+				leftItem: null,
+				subMenu: null,
+				quickSwitcherLabel: null,
+				disabled: !canInsertSolid,
+			},
+			{
+				type: 'item',
+				id: 'insert-asset',
+				label: 'Add asset',
+				value: 'insert-asset',
+				onClick: insertAsset,
+				keyHint: null,
+				leftItem: null,
+				subMenu: null,
+				quickSwitcherLabel: null,
+				disabled: !canInsertAsset,
+			},
+		];
+	}, [insertSolid, canInsertSolid, insertAsset, canInsertAsset]);
+
+	return (
+		<ContextMenu
+			ref={timelineVerticalScroll}
+			values={contextMenuItems}
+			onOpen={null}
+			style={container}
+			className={'css-reset ' + VERTICAL_SCROLLBAR_CLASSNAME}
+			onPointerDown={onPointerDown}
+		>
+			{children}
+		</ContextMenu>
+	);
+};
+
 const TimelineInner: React.FC = () => {
 	const {sequences} = useContext(Internals.SequenceManager);
-	const {expandedTracks} = useContext(ExpandedTracksContext);
-	const {previewServerState} = useContext(StudioServerConnectionCtx);
-	const visualModeEnabled =
-		Boolean(process.env.EXPERIMENTAL_VISUAL_MODE_ENABLED) &&
-		previewServerState.type === 'connected';
 	const videoConfig = Internals.useUnsafeVideoConfig();
+	const isStill = useIsStill();
+	const {overrideIdToNodePathMappings} = useContext(
+		Internals.OverrideIdsToNodePathsGettersContext,
+	);
+
+	const {previewServerState} = useContext(StudioServerConnectionCtx);
+
+	const previewConnected = previewServerState.type === 'connected';
+
 	const videoConfigIsNull = videoConfig === null;
 
 	const timeline = useMemo((): TrackWithHash[] => {
@@ -63,87 +242,81 @@ const TimelineInner: React.FC = () => {
 
 		return calculateTimeline({
 			sequences,
+			overrideIdsToNodePaths: overrideIdToNodePathMappings,
 		});
-	}, [sequences, videoConfigIsNull]);
+	}, [sequences, videoConfigIsNull, overrideIdToNodePathMappings]);
 
 	const durationInFrames = videoConfig?.durationInFrames ?? 0;
 
 	const filtered = useMemo(() => {
-		const withoutHidden = timeline.filter((t) => !isTrackHidden(t));
-
-		const withoutAfter = withoutHidden.filter((t) => {
-			return t.sequence.from <= durationInFrames && t.sequence.duration > 0;
-		});
-
-		return withoutAfter.filter((t) => t.sequence.showInTimeline);
+		return timeline.filter((t) =>
+			shouldShowTrackInTimeline(t, durationInFrames),
+		);
 	}, [durationInFrames, timeline]);
 
-	const shown = filtered.slice(0, MAX_TIMELINE_TRACKS);
+	const shown = useMemo(() => {
+		return filtered.length > MAX_TIMELINE_TRACKS
+			? filtered.slice(0, MAX_TIMELINE_TRACKS)
+			: filtered;
+	}, [filtered]);
+
 	const hasBeenCut = filtered.length > shown.length;
 
-	const inner: React.CSSProperties = useMemo(() => {
-		return {
-			height:
-				shown.reduce((acc, track) => {
-					const isExpanded =
-						visualModeEnabled && (expandedTracks[track.sequence.id] ?? false);
-					return (
-						acc +
-						getTimelineLayerHeight(track.sequence.type) +
-						Number(TIMELINE_ITEM_BORDER_BOTTOM) +
-						(isExpanded
-							? getExpandedTrackHeight(track.sequence.controls) +
-								TIMELINE_ITEM_BORDER_BOTTOM
-							: 0)
-					);
-				}, 0) +
-				TIMELINE_ITEM_BORDER_BOTTOM +
-				(hasBeenCut ? MAX_TIMELINE_TRACKS_NOTICE_HEIGHT : 0) +
-				TIMELINE_TIME_INDICATOR_HEIGHT,
-			display: 'flex',
-			flex: 1,
-			minHeight: '100%',
-			overflowX: 'hidden',
-		};
-	}, [hasBeenCut, shown, expandedTracks, visualModeEnabled]);
-
 	return (
-		<div
-			ref={timelineVerticalScroll}
-			style={container}
-			className={'css-reset ' + VERTICAL_SCROLLBAR_CLASSNAME}
-		>
-			<TimelineWidthProvider>
-				<TimelinePinchZoom />
-				<div style={inner}>
-					<SplitterContainer
-						orientation="vertical"
-						defaultFlex={0.2}
-						id="names-to-timeline"
-						maxFlex={0.5}
-						minFlex={0.15}
-					>
-						<SplitterElement
-							type="flexer"
-							sticky={<TimelineTimePlaceholders />}
+		<TimelineClearSelectionArea>
+			{sequences.map((sequence) => {
+				if (!sequence.controls || !previewConnected || !sequence.getStack()) {
+					return null;
+				}
+
+				return (
+					<SubscribeToNodePaths
+						key={sequence.id}
+						overrideId={sequence.controls.overrideId}
+						schema={sequence.controls.schema}
+						getStack={sequence.getStack}
+						effects={sequence.effects}
+					/>
+				);
+			})}
+			<SequencePropsObserver />
+			<TimelineSelectAllKeybindings timeline={shown} />
+			<TimelineHeightContainer shown={shown} hasBeenCut={hasBeenCut}>
+				{isStill ? (
+					<TimelineList timeline={shown} />
+				) : (
+					<TimelineWidthProvider>
+						<TimelinePinchZoom />
+						<SplitterContainer
+							orientation="vertical"
+							defaultFlex={0.2}
+							id="names-to-timeline"
+							maxFlex={0.5}
+							minFlex={0.15}
 						>
-							<TimelineList timeline={shown} />
-						</SplitterElement>
-						<SplitterHandle onCollapse={noop} allowToCollapse="none" />
-						<SplitterElement type="anti-flexer" sticky={null}>
-							<TimelineScrollable>
-								<TimelineTracks timeline={shown} hasBeenCut={hasBeenCut} />
-								<TimelineInOutPointer />
-								<TimelinePlayCursorSyncer />
-								<TimelineDragHandler />
-								<TimelineTimeIndicators />
-								<TimelineSlider />
-							</TimelineScrollable>
-						</SplitterElement>
-					</SplitterContainer>
-				</div>
-			</TimelineWidthProvider>
-		</div>
+							<SplitterElement
+								type="flexer"
+								sticky={<TimelineTimePlaceholders />}
+							>
+								<TimelineList timeline={shown} />
+							</SplitterElement>
+							<SplitterHandle onCollapse={noop} allowToCollapse="none" />
+							<SplitterElement type="anti-flexer" sticky={null}>
+								<TimelineScrollable>
+									<TimelineTracks timeline={shown} hasBeenCut={hasBeenCut} />
+									<TimelinePlayCursorSyncer />
+									<TimelineInOutPointer />
+									<TimelineTimeIndicators />
+									<TimelineDragHandler />
+									<TimelineInOutDragHandler />
+									<TimelineSlider />
+								</TimelineScrollable>
+							</SplitterElement>
+						</SplitterContainer>
+					</TimelineWidthProvider>
+				)}
+			</TimelineHeightContainer>
+		</TimelineClearSelectionArea>
 	);
 };
 

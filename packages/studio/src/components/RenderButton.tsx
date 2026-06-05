@@ -222,7 +222,7 @@ export const RenderButton: React.FC<{readonly readOnlyStudio: boolean}> = ({
 	}, []);
 
 	const video = Internals.useVideo();
-	const getCurrentFrame = PlayerInternals.useFrameImperative();
+	const {getCurrentFrame} = PlayerInternals.usePlayer();
 
 	const {props} = useContext(Internals.EditorPropsContext);
 
@@ -256,6 +256,7 @@ export const RenderButton: React.FC<{readonly readOnlyStudio: boolean}> = ({
 				initialProResProfile:
 					defaults.proResProfile as _InternalTypes['ProResProfile'],
 				initialx264Preset: defaults.x264Preset as X264Preset,
+				initialGopSize: defaults.gopSize,
 				initialPixelFormat: null,
 				initialAudioBitrate: defaults.audioBitrate,
 				initialVideoBitrate: defaults.videoBitrate,
@@ -289,6 +290,7 @@ export const RenderButton: React.FC<{readonly readOnlyStudio: boolean}> = ({
 				renderTypeOfLastRender: null,
 				defaulMetadata: defaults.metadata,
 				initialHardwareAcceleration: defaults.hardwareAcceleration,
+				initialSampleRate: defaults.sampleRate,
 				initialChromeMode: defaults.chromeMode,
 				initialMediaCacheSizeInBytes: defaults.mediaCacheSizeInBytes,
 				renderDefaults: defaults,

@@ -11,11 +11,11 @@ const {
 	publicDirOption,
 	askAIOption,
 	experimentalClientSideRenderingOption,
-	experimentalVisualModeOption,
 	keyboardShortcutsOption,
 	rspackOption,
 	browserExecutableOption,
 	bundleCacheOption,
+	sampleRateOption,
 } = BrowserSafeApis.options;
 
 export const processVideoJob = async ({
@@ -57,10 +57,15 @@ export const processVideoJob = async ({
 		commandLine: parsedCli,
 	}).value;
 	const rspack = rspackOption.getValue({commandLine: parsedCli}).value;
+	const sampleRate =
+		job.type === 'video'
+			? job.sampleRate
+			: sampleRateOption.getValue({commandLine: parsedCli}).value;
 	const fullEntryPoint = convertEntryPointToServeUrl(entryPoint);
 
 	await renderVideoFlow({
 		remotionRoot,
+		sampleRate,
 		browser: 'chrome',
 		browserExecutable,
 		chromiumOptions: job.chromiumOptions,
@@ -95,6 +100,7 @@ export const processVideoJob = async ({
 		uiImageFormat: job.imageFormat,
 		cancelSignal: job.cancelToken.cancelSignal,
 		crf: job.type === 'video' ? job.crf : null,
+		gopSize: job.type === 'video' ? job.gopSize : null,
 		ffmpegOverride,
 		audioBitrate: job.type === 'video' ? job.audioBitrate : null,
 		muted: job.type === 'video' ? job.muted : true,
@@ -130,9 +136,6 @@ export const processVideoJob = async ({
 		experimentalClientSideRenderingEnabled:
 			experimentalClientSideRenderingOption.getValue({commandLine: parsedCli})
 				.value,
-		experimentalVisualModeEnabled: experimentalVisualModeOption.getValue({
-			commandLine: parsedCli,
-		}).value,
 		keyboardShortcutsEnabled,
 		rspack,
 		shouldCache,

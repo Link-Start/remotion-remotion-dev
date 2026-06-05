@@ -1,4 +1,5 @@
-import type {TSequence} from 'remotion';
+import {stringifySequenceSubscriptionKey} from '@remotion/studio-shared';
+import type {LoopDisplay, OverrideIdToNodePaths, TSequence} from 'remotion';
 import {
 	getCascadedStart,
 	getTimelineVisibleDuration,
@@ -13,10 +14,32 @@ import type {
 import {getTimelineSequenceSequenceSortKey} from './get-timeline-sequence-sort-key';
 import {sortItemsByNonceHistory} from './sort-by-nonce-history';
 
+const getInheritedLoopDisplay = (
+	sequence: TSequence,
+	sequences: TSequence[],
+): LoopDisplay | undefined => {
+	if (sequence.loopDisplay) {
+		return sequence.loopDisplay;
+	}
+
+	if (!sequence.parent) {
+		return undefined;
+	}
+
+	const parent = sequences.find((s) => s.id === sequence.parent);
+	if (!parent) {
+		return undefined;
+	}
+
+	return getInheritedLoopDisplay(parent, sequences);
+};
+
 export const calculateTimeline = ({
 	sequences,
+	overrideIdsToNodePaths,
 }: {
 	sequences: TSequence[];
+	overrideIdsToNodePaths: OverrideIdToNodePaths;
 }): TrackWithHash[] => {
 	const sortedSequences = sortItemsByNonceHistory(sequences);
 	const tracks: TrackWithHashAndOriginalTimings[] = [];
@@ -57,16 +80,38 @@ export const calculateTimeline = ({
 			sortedSequences,
 		);
 
+		const overrideId = sequence.controls?.overrideId ?? null;
+		const nodePath = overrideId ? overrideIdsToNodePaths[overrideId] : null;
+		const hasKeyframeRows =
+			sequence.controls !== null || sequence.effects.length > 0;
+
 		tracks.push({
 			sequence: {
 				...sequence,
 				from: visibleStart,
 				duration: visibleDuration,
+				loopDisplay:
+					sequence.type === 'audio' || sequence.type === 'video'
+						? getInheritedLoopDisplay(sequence, sortedSequences)
+						: sequence.loopDisplay,
 			},
 			depth: getTimelineNestedLevel(sequence, sortedSequences, 0),
 			hash: actualHash,
 			cascadedStart,
 			cascadedDuration: sequence.duration,
+			keyframeDisplayOffset: hasKeyframeRows
+				? cascadedStart - sequence.from
+				: 0,
+			sequenceFrameOffset: visibleStart - cascadedStart,
+			nodePathInfo: nodePath
+				? {
+						sequenceSubscriptionKey: nodePath,
+						auxiliaryKeys: [],
+						index: 0,
+						numberOfSequencesWithThisNodePath: 0,
+						supportsEffects: sequence.controls?.supportsEffects === true,
+					}
+				: null,
 		});
 	}
 
@@ -83,7 +128,7 @@ export const calculateTimeline = ({
 		nonceRanks.set(tracks[i].sequence.id, i);
 	}
 
-	return uniqueTracks.sort((a, b) => {
+	const sortedTracks = uniqueTracks.sort((a, b) => {
 		const sortKeyA = getTimelineSequenceSequenceSortKey(
 			a,
 			tracks,
@@ -98,4 +143,50 @@ export const calculateTimeline = ({
 		);
 		return sortKeyA.localeCompare(sortKeyB);
 	});
+
+	const nodePathIndexCounters = new Map<string, number>();
+
+	return sortedTracks
+		.map((track): TrackWithHash => {
+			if (track.nodePathInfo === null) {
+				return track;
+			}
+
+			const key = stringifySequenceSubscriptionKey(
+				track.nodePathInfo.sequenceSubscriptionKey,
+			);
+			const index = nodePathIndexCounters.get(key) ?? 0;
+			nodePathIndexCounters.set(key, index + 1);
+			return {
+				...track,
+				nodePathInfo: {
+					sequenceSubscriptionKey: track.nodePathInfo.sequenceSubscriptionKey,
+					auxiliaryKeys: track.nodePathInfo.auxiliaryKeys,
+					index,
+					numberOfSequencesWithThisNodePath: 0,
+					supportsEffects: track.nodePathInfo.supportsEffects,
+				},
+			};
+		})
+		.map((track) => {
+			if (track.nodePathInfo === null) {
+				return track;
+			}
+
+			const key = stringifySequenceSubscriptionKey(
+				track.nodePathInfo.sequenceSubscriptionKey,
+			);
+
+			return {
+				...track,
+				nodePathInfo: {
+					sequenceSubscriptionKey: track.nodePathInfo.sequenceSubscriptionKey,
+					auxiliaryKeys: track.nodePathInfo.auxiliaryKeys,
+					index: track.nodePathInfo.index,
+					numberOfSequencesWithThisNodePath:
+						nodePathIndexCounters.get(key) ?? 0,
+					supportsEffects: track.nodePathInfo.supportsEffects,
+				},
+			};
+		});
 };

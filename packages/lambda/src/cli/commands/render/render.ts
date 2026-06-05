@@ -37,6 +37,7 @@ const {
 	offthreadVideoThreadsOption,
 	scaleOption,
 	crfOption,
+	gopSizeOption,
 	jpegQualityOption,
 	videoBitrateOption,
 	mutedOption,
@@ -68,6 +69,7 @@ const {
 	overrideWidthOption,
 	overrideFpsOption,
 	overrideDurationOption,
+	sampleRateOption,
 } = BrowserSafeApis.options;
 
 export const renderCommand = async ({
@@ -160,6 +162,9 @@ export const renderCommand = async ({
 	const crf = crfOption.getValue({
 		commandLine: CliInternals.parsedCli,
 	}).value;
+	const gopSize = gopSizeOption.getValue({
+		commandLine: CliInternals.parsedCli,
+	}).value;
 	const jpegQuality = jpegQualityOption.getValue({
 		commandLine: CliInternals.parsedCli,
 	}).value;
@@ -213,6 +218,9 @@ export const renderCommand = async ({
 	const metadata = metadataOption.getValue({
 		commandLine: CliInternals.parsedCli,
 	}).value;
+	const sampleRate = sampleRateOption.getValue({
+		commandLine: CliInternals.parsedCli,
+	}).value;
 	const darkMode = darkModeOption.getValue({
 		commandLine: CliInternals.parsedCli,
 	}).value;
@@ -256,6 +264,7 @@ export const renderCommand = async ({
 			offthreadVideoCacheSizeInBytes,
 			binariesDirectory,
 			forceIPv4: false,
+			sampleRate: 48000,
 		});
 
 		const indent = false;
@@ -340,6 +349,7 @@ export const renderCommand = async ({
 		codec: codec as ServerlessCodec,
 		imageFormat,
 		crf: crf ?? undefined,
+		gopSize,
 		envVariables,
 		pixelFormat,
 		proResProfile,
@@ -397,6 +407,7 @@ export const renderCommand = async ({
 		isProduction:
 			parsedLambdaCli[BrowserSafeApis.options.isProductionOption.cliFlag] ??
 			true,
+		sampleRate,
 	});
 
 	const progressBar = CliInternals.createOverwriteableCliOutput({
@@ -405,6 +416,7 @@ export const renderCommand = async ({
 		// No browser logs in Lambda
 		updatesDontOverwrite: false,
 		indent: false,
+		logLevel,
 	});
 
 	Log.info(

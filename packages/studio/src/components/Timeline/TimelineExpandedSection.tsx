@@ -1,19 +1,18 @@
-import type {SequenceNodePath} from '@remotion/studio-shared';
-import React, {useMemo} from 'react';
-import type {TSequence} from 'remotion';
-import type {
-	CodePosition,
-	OriginalPosition,
-} from '../../error-overlay/react-overlay/utils/get-source-map';
+import React, {useContext, useMemo} from 'react';
+import {Internals, type TSequence} from 'remotion';
+import type {CodePosition} from '../../error-overlay/react-overlay/utils/get-source-map';
 import {TIMELINE_TRACK_SEPARATOR} from '../../helpers/colors';
+import type {SequenceNodePathInfo} from '../../helpers/get-timeline-sequence-sort-key';
 import {
+	buildTimelineTree,
+	flattenVisibleTreeNodes,
 	getExpandedTrackHeight,
-	getSchemaFields,
 } from '../../helpers/timeline-layout';
-import {TimelineFieldRow} from './TimelineFieldRow';
-
-export const EXPANDED_SECTION_PADDING_LEFT = 28;
-export const EXPANDED_SECTION_PADDING_RIGHT = 10;
+import {
+	ExpandedTracksGetterContext,
+	ExpandedTracksSetterContext,
+} from '../ExpandedTracksProvider';
+import {TimelineExpandedRow} from './TimelineExpandedRow';
 
 const expandedSectionBase: React.CSSProperties = {
 	color: 'white',
@@ -25,41 +24,64 @@ const expandedSectionBase: React.CSSProperties = {
 };
 
 const separator: React.CSSProperties = {
-	height: 1,
-	backgroundColor: TIMELINE_TRACK_SEPARATOR,
+	height: 0,
+	borderBottom: `1px solid ${TIMELINE_TRACK_SEPARATOR}`,
 };
 
 export const TimelineExpandedSection: React.FC<{
 	readonly sequence: TSequence;
-	readonly originalLocation: OriginalPosition | null;
+	readonly validatedLocation: CodePosition;
+	readonly nodePathInfo: SequenceNodePathInfo;
 	readonly nestedDepth: number;
-	readonly nodePath: SequenceNodePath | null;
-}> = ({sequence, originalLocation, nestedDepth, nodePath}) => {
-	const overrideId = sequence.controls?.overrideId ?? sequence.id;
-	const schemaFields = useMemo(
-		() => getSchemaFields(sequence.controls),
-		[sequence.controls],
+	readonly keyframeDisplayOffset: number;
+}> = ({
+	sequence,
+	validatedLocation,
+	nodePathInfo,
+	nestedDepth,
+	keyframeDisplayOffset,
+}) => {
+	const {getIsExpanded} = useContext(ExpandedTracksGetterContext);
+	const {toggleTrack} = useContext(ExpandedTracksSetterContext);
+	const {codeValues: visualModeCodeValues} = useContext(
+		Internals.VisualModeCodeValuesContext,
+	);
+	const {getDragOverrides, getEffectDragOverrides} = useContext(
+		Internals.VisualModeDragOverridesContext,
 	);
 
-	const validatedLocation: CodePosition | null = useMemo(() => {
-		if (
-			!originalLocation ||
-			!originalLocation.source ||
-			!originalLocation.line
-		) {
-			return null;
-		}
+	const tree = useMemo(
+		() =>
+			buildTimelineTree({
+				sequence,
+				nodePathInfo,
+				getDragOverrides,
+				getEffectDragOverrides,
+				codeValues: visualModeCodeValues,
+			}),
+		[
+			sequence,
+			nodePathInfo,
+			getDragOverrides,
+			getEffectDragOverrides,
+			visualModeCodeValues,
+		],
+	);
 
-		return {
-			source: originalLocation.source,
-			line: originalLocation.line,
-			column: originalLocation.column ?? 0,
-		};
-	}, [originalLocation]);
+	const flat = useMemo(
+		() => flattenVisibleTreeNodes({nodes: tree, getIsExpanded}),
+		[tree, getIsExpanded],
+	);
 
 	const expandedHeight = useMemo(
-		() => getExpandedTrackHeight(sequence.controls),
-		[sequence.controls],
+		() =>
+			getExpandedTrackHeight({
+				sequence,
+				nodePathInfo,
+				getIsExpanded,
+				codeValues: visualModeCodeValues,
+			}),
+		[sequence, nodePathInfo, getIsExpanded, visualModeCodeValues],
 	);
 
 	const style = useMemo(() => {
@@ -69,33 +91,32 @@ export const TimelineExpandedSection: React.FC<{
 		};
 	}, [expandedHeight]);
 
-	const keysToObserve = useMemo(() => {
-		if (!schemaFields) {
-			return [];
-		}
+	const {schema} = sequence.controls!;
 
-		return schemaFields.map((f) => f.key);
-	}, [schemaFields]);
+	if (flat.length === 0) {
+		return <div style={style}>No schema</div>;
+	}
 
 	return (
 		<div style={style}>
-			{schemaFields
-				? schemaFields.map((field, i) => {
-						return (
-							<React.Fragment key={field.key}>
-								{i > 0 ? <div style={separator} /> : null}
-								<TimelineFieldRow
-									field={field}
-									overrideId={overrideId}
-									validatedLocation={validatedLocation}
-									nestedDepth={nestedDepth}
-									nodePath={nodePath}
-									keysToObserve={keysToObserve}
-								/>
-							</React.Fragment>
-						);
-					})
-				: 'No schema'}
+			{flat.map(({node, depth}, i) => {
+				return (
+					<React.Fragment key={JSON.stringify(node.nodePathInfo)}>
+						{i > 0 ? <div style={separator} /> : null}
+						<TimelineExpandedRow
+							node={node}
+							depth={depth}
+							nestedDepth={nestedDepth}
+							getIsExpanded={getIsExpanded}
+							toggleTrack={toggleTrack}
+							validatedLocation={validatedLocation}
+							nodePath={nodePathInfo.sequenceSubscriptionKey}
+							schema={schema}
+							keyframeDisplayOffset={keyframeDisplayOffset}
+						/>
+					</React.Fragment>
+				);
+			})}
 		</div>
 	);
 };

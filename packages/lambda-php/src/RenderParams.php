@@ -30,7 +30,7 @@ class RenderParams
     protected $chromiumOptions = null;
     protected $scale = 1;
     protected $everyNthFrame = 1;
-    protected $numberOfGifLoops = 0;
+    protected $numberOfGifLoops = null;
     protected $concurrencyPerLambda = 1;
     protected $concurrency = null;
     protected $downloadBehavior = [
@@ -61,6 +61,8 @@ class RenderParams
     protected $forcePathStyle = false;
     protected $storageClass = null;
     protected $isProduction = null;
+    protected $sampleRate = 48000;
+    protected $gopSize = null;
 
     public function __construct(
         ?array  $data = null,
@@ -81,7 +83,7 @@ class RenderParams
         ?object $chromiumOptions = null,
         ?int    $scale = 1,
         ?int    $everyNthFrame = 1,
-        ?int    $numberOfGifLoops = 0,
+        ?int    $numberOfGifLoops = null,
         ?int    $concurrencyPerLambda = 1,
         ?int    $concurrency = null,
         ?array  $downloadBehavior = null,
@@ -111,7 +113,8 @@ class RenderParams
         ?bool   $preferLossless = false,
         ?bool   $forcePathStyle = false,
         ?array  $metadata = null,
-        ?bool   $isProduction = null
+        ?bool   $isProduction = null,
+        ?int    $gopSize = null
     )
     {
         if ($chromiumOptions === null) {
@@ -167,6 +170,7 @@ class RenderParams
         $this->preferLossless = $preferLossless;
         $this->forcePathStyle = $forcePathStyle;
         $this->isProduction = $isProduction;
+        $this->gopSize = $gopSize;
     }
 
     private array $inputProps = array();
@@ -198,6 +202,7 @@ class RenderParams
             'downloadBehavior' => $this->getDownloadBehavior(),
             'muted' => $this->getMuted(),
             'preferLossless' => $this->getPreferLossless(),
+            'sampleRate' => $this->getSampleRate(),
             'version' => Semantic::VERSION,
             'overwrite' => $this->getOverwrite(),
             'audioBitrate' => $this->getAudioBitrate(),
@@ -217,6 +222,7 @@ class RenderParams
             'audioCodec' => $this->getAudioCodec(),
             'storageClass' => $this->getStorageClass(),
             'x264Preset' => $this->getX264Preset(),
+            'gopSize' => $this->getGopSize(),
             'deleteAfter' => $this->getDeleteAfter(),
             'forcePathStyle' => $this->getForcePathStyle(),
             'isProduction' => $this->getIsProduction(),
@@ -1005,6 +1011,17 @@ class RenderParams
         return $this;
     }
 
+    public function getGopSize()
+    {
+        return $this->gopSize;
+    }
+
+    public function setGopSize($gopSize)
+    {
+        $this->gopSize = $gopSize;
+        return $this;
+    }
+
     public function getDeleteAfter()
     {
         return $this->deleteAfter;
@@ -1024,6 +1041,17 @@ class RenderParams
     public function setIsProduction($isProduction)
     {
         $this->isProduction = $isProduction;
+        return $this;
+    }
+
+    public function getSampleRate()
+    {
+        return $this->sampleRate;
+    }
+
+    public function setSampleRate($sampleRate)
+    {
+        $this->sampleRate = $sampleRate;
         return $this;
     }
 }

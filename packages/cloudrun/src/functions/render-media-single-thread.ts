@@ -167,6 +167,7 @@ export const renderMediaSingleThread = async (
 			scale: body.scale,
 			proResProfile: body.proResProfile ?? undefined,
 			x264Preset: body.x264Preset,
+			gopSize: body.gopSize,
 			everyNthFrame: body.everyNthFrame,
 			numberOfGifLoops: body.numberOfGifLoops,
 			onProgress,
@@ -213,6 +214,7 @@ export const renderMediaSingleThread = async (
 			onLog: RenderInternals.defaultOnLog,
 			licenseKey: null,
 			isProduction: null,
+			sampleRate: body.sampleRate ?? 48000,
 		});
 
 		const storage = new Storage();

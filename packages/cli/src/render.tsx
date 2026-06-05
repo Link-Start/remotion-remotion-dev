@@ -16,6 +16,7 @@ const {
 	offthreadVideoCacheSizeInBytesOption,
 	scaleOption,
 	crfOption,
+	gopSizeOption,
 	jpegQualityOption,
 	videoBitrateOption,
 	enforceAudioOption,
@@ -47,7 +48,6 @@ const {
 	darkModeOption,
 	askAIOption,
 	experimentalClientSideRenderingOption,
-	experimentalVisualModeOption,
 	keyboardShortcutsOption,
 	rspackOption,
 	pixelFormatOption,
@@ -63,6 +63,7 @@ const {
 	overrideFpsOption,
 	overrideDurationOption,
 	bundleCacheOption,
+	sampleRateOption,
 } = BrowserSafeApis.options;
 
 export const render = async (
@@ -178,6 +179,9 @@ export const render = async (
 	const crf = shouldOutputImageSequence
 		? null
 		: crfOption.getValue({commandLine: parsedCli}).value;
+	const gopSize = shouldOutputImageSequence
+		? null
+		: gopSizeOption.getValue({commandLine: parsedCli}).value;
 	const enableMultiProcessOnLinux = enableMultiprocessOnLinuxOption.getValue({
 		commandLine: parsedCli,
 	}).value;
@@ -225,6 +229,7 @@ export const render = async (
 		commandLine: parsedCli,
 	}).value;
 	const rspack = rspackOption.getValue({commandLine: parsedCli}).value;
+	const sampleRate = sampleRateOption.getValue({commandLine: parsedCli}).value;
 
 	const chromiumOptions: Required<ChromiumOptions> = {
 		disableWebSecurity,
@@ -257,9 +262,6 @@ export const render = async (
 		experimentalClientSideRenderingOption.getValue({
 			commandLine: parsedCli,
 		}).value;
-	const experimentalVisualModeEnabled = experimentalVisualModeOption.getValue({
-		commandLine: parsedCli,
-	}).value;
 
 	await renderVideoFlow({
 		fullEntryPoint,
@@ -303,6 +305,7 @@ export const render = async (
 		uiImageFormat: null,
 		cancelSignal: null,
 		crf,
+		gopSize,
 		ffmpegOverride,
 		audioBitrate,
 		muted,
@@ -332,9 +335,9 @@ export const render = async (
 		imageSequencePattern,
 		askAIEnabled,
 		experimentalClientSideRenderingEnabled,
-		experimentalVisualModeEnabled,
 		keyboardShortcutsEnabled,
 		rspack,
+		sampleRate,
 		shouldCache,
 	});
 };

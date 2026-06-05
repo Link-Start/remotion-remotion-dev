@@ -31,6 +31,7 @@ export const usePlayer = (): UsePlayerMethods => {
 	const setFrame = Internals.Timeline.useTimelineSetFrame();
 	const setTimelinePosition = Internals.Timeline.useTimelineSetFrame();
 	const audioContext = useContext(Internals.SharedAudioContext);
+	const audioTagsContext = useContext(Internals.SharedAudioTagsContext);
 	const {audioAndVideoTags} = Internals.useTimelineContext();
 
 	const frameRef = useRef<number>(frame);
@@ -59,15 +60,22 @@ export const usePlayer = (): UsePlayerMethods => {
 
 	const seek = useCallback(
 		(newFrame: number) => {
+			const frameToSeekTo = config
+				? Internals.TimelinePosition.clampFrameToCompositionRange(
+						newFrame,
+						config.durationInFrames,
+					)
+				: Math.max(0, newFrame);
+
 			if (video?.id) {
-				setTimelinePosition((c) => ({...c, [video.id]: newFrame}));
+				setTimelinePosition((c) => ({...c, [video.id]: frameToSeekTo}));
 			}
 
-			frameRef.current = newFrame;
+			frameRef.current = frameToSeekTo;
 
-			emitter.dispatchSeek(newFrame);
+			emitter.dispatchSeek(frameToSeekTo);
 		},
-		[emitter, setTimelinePosition, video?.id],
+		[config, emitter, setTimelinePosition, video?.id],
 	);
 
 	const play = useCallback(
@@ -82,13 +90,13 @@ export const usePlayer = (): UsePlayerMethods => {
 				seek(0);
 			}
 
-			audioContext?.audioContext?.resume();
+			audioContext?.resume();
 
 			/**
 			 * Play silent audio tags to warm them up for autoplay
 			 */
-			if (audioContext && audioContext.numberOfAudioTags > 0 && e) {
-				audioContext.playAllAudios();
+			if (audioTagsContext && audioTagsContext.numberOfAudioTags > 0 && e) {
+				audioTagsContext.playAllAudios();
 			}
 
 			/**
@@ -108,6 +116,7 @@ export const usePlayer = (): UsePlayerMethods => {
 			imperativePlaying,
 			isLastFrame,
 			audioContext,
+			audioTagsContext,
 			setPlaying,
 			emitter,
 			seek,
@@ -121,7 +130,7 @@ export const usePlayer = (): UsePlayerMethods => {
 
 			setPlaying(false);
 			emitter.dispatchPause();
-			audioContext?.audioContext?.suspend();
+			audioContext?.suspend();
 		}
 	}, [emitter, imperativePlaying, setPlaying, audioContext]);
 

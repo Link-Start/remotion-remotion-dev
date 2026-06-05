@@ -135,7 +135,9 @@ Config.setEntryPoint('./src/index.ts');
 
 If you pass an entry point as a CLI argument, it will take precedence.
 
-## `setLevel()`<AvailableFrom v="2.0.1" />
+## `setLogLevel()`<AvailableFrom v="2.0.1" />
+
+_previously named "setLevel"_
 
 Increase or decrease the amount of log messages in the CLI.
 Acceptable values:
@@ -148,7 +150,7 @@ Acceptable values:
 ```ts twoslash title="remotion.config.ts"
 import {Config} from '@remotion/cli/config';
 // ---cut---
-Config.setLevel('verbose');
+Config.setLogLevel('verbose');
 ```
 
 The [command line flag](/docs/cli/render#--log) `--log` will take precedence over this option.
@@ -210,18 +212,6 @@ Config.setExperimentalRspackEnabled(true);
 ```
 
 The [command line flag](/docs/cli/studio#--experimental-rspack) `--experimental-rspack` will take precedence over this option.
-
-## `setExperimentalVisualMode()`<AvailableFrom v="4.0.428" />
-
-<Options id="experimental-visual-mode" />
-
-```ts twoslash title="remotion.config.ts"
-import {Config} from '@remotion/cli/config';
-// ---cut---
-Config.setExperimentalVisualMode(true);
-```
-
-The [command line flag](/docs/cli/studio#--experimental-visual-mode) `--experimental-visual-mode` will take precedence over this option.
 
 ## `setWebpackPollingInMilliseconds()`<AvailableFrom v="3.3.11" />
 
@@ -471,6 +461,30 @@ Config.setEnforceAudioTrack(true);
 
 The [command line flag](/docs/cli/render#--enforce-audio-track) `--enforce-audio-track` will take precedence over this option.
 
+## `setSampleRate()`<AvailableFrom v="4.0.448" />
+
+<Options id="sample-rate" />
+
+```ts twoslash title="remotion.config.ts"
+import {Config} from '@remotion/cli/config';
+// ---cut---
+Config.setSampleRate(44100);
+```
+
+The [command line flag](/docs/cli/render#--sample-rate) `--sample-rate` will take precedence over this option.
+
+## `setPreviewSampleRate()`<AvailableFrom v="4.0.470" />
+
+<Options id="preview-sample-rate" />
+
+```ts twoslash title="remotion.config.ts"
+import {Config} from '@remotion/cli/config';
+// ---cut---
+Config.setPreviewSampleRate(44100);
+```
+
+The [command line flag](/docs/cli/studio#--preview-sample-rate) `--preview-sample-rate` will take precedence over this option.
+
 ## `setForSeamlessAacConcatenation()`<AvailableFrom v="4.0.123" />
 
 <Options id="for-seamless-aac-concatenation" />
@@ -671,6 +685,18 @@ Config.setX264Preset('fast');
 The [command line flag](/docs/cli/render#--x264-preset) `--x264-preset` will take precedence over this option.
 
 **See also**: [Encoding guide](/docs/encoding), [Transparent videos](/docs/transparent-videos)
+
+## `setGopSize()`<AvailableFrom v="4.0.466" />
+
+<Options id="gop" />
+
+```ts twoslash title="remotion.config.ts"
+import {Config} from '@remotion/cli/config';
+// ---cut---
+Config.setGopSize(239);
+```
+
+The [command line flag](/docs/cli/render#--gop) `--gop` will take precedence over this option.
 
 ## `setImageSequence()`<AvailableFrom v="1.4.0" />
 

@@ -1,8 +1,10 @@
 import {formatBytes} from '@remotion/studio-shared';
-import {ALL_FORMATS, Input, UrlSource} from 'mediabunny';
-import React, {useContext, useEffect, useMemo, useState} from 'react';
+import React, {useContext, useMemo} from 'react';
 import {Internals, staticFile} from 'remotion';
 import {BACKGROUND, BORDER_COLOR} from '../helpers/colors';
+import {formatMediaDuration} from '../helpers/format-media-duration';
+import {getPreviewFileType} from '../helpers/get-preview-file-type';
+import {useMediaMetadata} from '../helpers/use-media-metadata';
 import {useStaticFiles} from './use-static-files';
 
 export const CURRENT_ASSET_HEIGHT = 80;
@@ -39,24 +41,15 @@ const row: React.CSSProperties = {
 	backgroundColor: BACKGROUND,
 };
 
-const formatDuration = (seconds: number): string => {
-	const h = Math.floor(seconds / 3600);
-	const m = Math.floor((seconds % 3600) / 60);
-	const s = seconds % 60;
-	const sFixed = s.toFixed(2).padStart(5, '0');
-
-	if (h > 0) {
-		return `${h}:${String(m).padStart(2, '0')}:${sFixed}`;
+export const getCurrentAssetMetadataSource = (assetName: string | null) => {
+	if (!assetName) {
+		return null;
 	}
 
-	return `${String(m).padStart(2, '0')}:${sFixed}`;
-};
-
-type MediaMetadata = {
-	duration: number;
-	format: string;
-	width: number | null;
-	height: number | null;
+	const fileType = getPreviewFileType(assetName);
+	return fileType === 'audio' || fileType === 'video'
+		? staticFile(assetName)
+		: null;
 };
 
 export const CurrentAsset: React.FC = () => {
@@ -76,45 +69,8 @@ export const CurrentAsset: React.FC = () => {
 		return file?.sizeInBytes ?? null;
 	}, [assetName, staticFiles]);
 
-	const [mediaMetadata, setMediaMetadata] = useState<MediaMetadata | null>(
-		null,
-	);
-
-	useEffect(() => {
-		setMediaMetadata(null);
-
-		if (!assetName) {
-			return;
-		}
-
-		const url = staticFile(assetName);
-		const input = new Input({
-			formats: ALL_FORMATS,
-			source: new UrlSource(url),
-		});
-
-		Promise.all([
-			input.computeDuration(),
-			input.getFormat(),
-			input.getPrimaryVideoTrack(),
-		])
-			.then(([duration, format, videoTrack]) => {
-				setMediaMetadata({
-					duration,
-					format: format.name,
-					width: videoTrack?.displayWidth ?? null,
-					height: videoTrack?.displayHeight ?? null,
-				});
-			})
-			.catch(() => {
-				// InputDisposedError (user navigated away) and
-				// non-media files (e.g. .png, .json) — ignore silently
-			});
-
-		return () => {
-			input.dispose();
-		};
-	}, [assetName]);
+	const src = getCurrentAssetMetadataSource(assetName);
+	const mediaMetadata = useMediaMetadata(src);
 
 	if (!assetName) {
 		return <div style={container} />;
@@ -128,7 +84,10 @@ export const CurrentAsset: React.FC = () => {
 	}
 
 	if (mediaMetadata) {
-		subtitleParts.push(mediaMetadata.format);
+		if (mediaMetadata.format) {
+			subtitleParts.push(mediaMetadata.format);
+		}
+
 		if (mediaMetadata.width !== null && mediaMetadata.height !== null) {
 			subtitleParts.push(`${mediaMetadata.width}x${mediaMetadata.height}`);
 		}
@@ -143,7 +102,9 @@ export const CurrentAsset: React.FC = () => {
 						<div style={subtitle}>{subtitleParts.join(' · ')}</div>
 					) : null}
 					{mediaMetadata ? (
-						<div style={subtitle}>{formatDuration(mediaMetadata.duration)}</div>
+						<div style={subtitle}>
+							{formatMediaDuration(mediaMetadata.duration)}
+						</div>
 					) : null}
 				</div>
 			</div>

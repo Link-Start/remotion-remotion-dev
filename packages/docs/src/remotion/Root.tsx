@@ -2,6 +2,46 @@ import {experts} from '@remotion/promo-pages/dist/experts/experts-data.js';
 import {CreateVideoInternals} from 'create-video';
 import React from 'react';
 import {Folder, Still} from 'remotion';
+import {EffectsBarrelDistortionPreview} from '../../components/effects/effects-barrel-distortion-preview';
+import {EffectsBlurPreview} from '../../components/effects/effects-blur-preview';
+import {EffectsBrightnessPreview} from '../../components/effects/effects-brightness-preview';
+import {EffectsChromaticAberrationPreview} from '../../components/effects/effects-chromatic-aberration-preview';
+import {EffectsColorKeyPreview} from '../../components/effects/effects-color-key-preview';
+import {EffectsContrastPreview} from '../../components/effects/effects-contrast-preview';
+import {EffectsDotGridPreview} from '../../components/effects/effects-dot-grid-preview';
+import {EffectsDropShadowPreview} from '../../components/effects/effects-drop-shadow-preview';
+import {EffectsDuotonePreview} from '../../components/effects/effects-duotone-preview';
+import {EffectsEvolvePreview} from '../../components/effects/effects-evolve-preview';
+import {EffectsFisheyePreview} from '../../components/effects/effects-fisheye-preview';
+import {EffectsGlowPreview} from '../../components/effects/effects-glow-preview';
+import {EffectsGrayscalePreview} from '../../components/effects/effects-grayscale-preview';
+import {EffectsHalftoneLinearGradientPreview} from '../../components/effects/effects-halftone-linear-gradient-preview';
+import {EffectsHalftonePreview} from '../../components/effects/effects-halftone-preview';
+import {EffectsHuePreview} from '../../components/effects/effects-hue-preview';
+import {EffectsInvertPreview} from '../../components/effects/effects-invert-preview';
+import {EffectsLightLeakPreview} from '../../components/effects/effects-light-leak-preview';
+import {EffectsLinearProgressiveBlurPreview} from '../../components/effects/effects-linear-progressive-blur-preview';
+import {EffectsLinesPreview} from '../../components/effects/effects-lines-preview';
+import {EffectsMirrorPreview} from '../../components/effects/effects-mirror-preview';
+import {EffectsNoisePreview} from '../../components/effects/effects-noise-preview';
+import {EffectsPixelDissolvePreview} from '../../components/effects/effects-pixel-dissolve-preview';
+import {EffectsRingsPreview} from '../../components/effects/effects-rings-preview';
+import {EffectsSaturationPreview} from '../../components/effects/effects-saturation-preview';
+import {EffectsScalePreview} from '../../components/effects/effects-scale-preview';
+import {EffectsScanlinesPreview} from '../../components/effects/effects-scanlines-preview';
+import {EffectsShinePreview} from '../../components/effects/effects-shine-preview';
+import {EffectsSpecklePreview} from '../../components/effects/effects-speckle-preview';
+import {EffectsStarburstPreview} from '../../components/effects/effects-starburst-preview';
+import {EffectsTintPreview} from '../../components/effects/effects-tint-preview';
+import {
+	EffectsUvTranslatePreview,
+	EffectsXyTranslatePreview,
+} from '../../components/effects/effects-translate-preview';
+import {EffectsVignettePreview} from '../../components/effects/effects-vignette-preview';
+import {EffectsWavePreview} from '../../components/effects/effects-wave-preview';
+import {EffectsWavesPreview} from '../../components/effects/effects-waves-preview';
+import {EffectsWhiteNoisePreview} from '../../components/effects/effects-white-noise-preview';
+import {EffectsZigzagPreview} from '../../components/effects/effects-zigzag-preview';
 import {articles} from '../data/articles';
 import {AllTemplates} from './AllTemplates';
 import {Article} from './Article';
@@ -58,6 +98,400 @@ export const RemotionRoot: React.FC = () => {
 						/>
 					);
 				})}
+			</Folder>
+			<Folder name="effect-previews">
+				<Still
+					id="effects-brightness-preview"
+					component={EffectsBrightnessPreview}
+					width={1280}
+					height={720}
+					defaultProps={{amount: 0.25}}
+				/>
+				<Still
+					id="effects-contrast-preview"
+					component={EffectsContrastPreview}
+					width={1280}
+					height={720}
+					defaultProps={{amount: 1.5}}
+				/>
+				<Still
+					id="effects-color-key-preview"
+					component={EffectsColorKeyPreview}
+					width={1280}
+					height={720}
+					defaultProps={{
+						keyColor: '#00ff00',
+						similarity: 0.45,
+						smoothness: 0.08,
+						spillSuppression: 0.25,
+					}}
+				/>
+				<Still
+					id="effects-duotone-preview"
+					component={EffectsDuotonePreview}
+					width={1280}
+					height={720}
+					defaultProps={{
+						darkColor: 'black',
+						lightColor: 'white',
+						threshold: 0.18,
+					}}
+				/>
+				<Still
+					id="effects-evolve-preview"
+					component={EffectsEvolvePreview}
+					width={1280}
+					height={720}
+					defaultProps={{
+						progress: 0.55,
+						direction: 'left',
+						feather: 0.18,
+					}}
+				/>
+				<Still
+					id="effects-drop-shadow-preview"
+					component={EffectsDropShadowPreview}
+					width={1280}
+					height={720}
+					defaultProps={{
+						radius: 24,
+						offsetX: 28,
+						offsetY: 28,
+						opacity: 0.65,
+						color: '#000000',
+					}}
+				/>
+				<Still
+					id="effects-glow-preview"
+					component={EffectsGlowPreview}
+					width={1280}
+					height={720}
+					defaultProps={{
+						radius: 28,
+						intensity: 1.8,
+						threshold: 0.25,
+						color: '#00d8ff',
+					}}
+				/>
+				<Still
+					id="effects-grayscale-preview"
+					component={EffectsGrayscalePreview}
+					width={1280}
+					height={720}
+					defaultProps={{amount: 1}}
+				/>
+				<Still
+					id="effects-hue-preview"
+					component={EffectsHuePreview}
+					width={1280}
+					height={720}
+					defaultProps={{degrees: 120}}
+				/>
+				<Still
+					id="effects-invert-preview"
+					component={EffectsInvertPreview}
+					width={1280}
+					height={720}
+					defaultProps={{amount: 1}}
+				/>
+				<Still
+					id="effects-saturation-preview"
+					component={EffectsSaturationPreview}
+					width={1280}
+					height={720}
+					defaultProps={{amount: 1.8}}
+				/>
+				<Still
+					id="effects-tint-preview"
+					component={EffectsTintPreview}
+					width={1280}
+					height={720}
+					defaultProps={{color: '#1ec8ff', amount: 0.7}}
+				/>
+				<Still
+					id="effects-vignette-preview"
+					component={EffectsVignettePreview}
+					width={1280}
+					height={720}
+					defaultProps={{
+						amount: 0.75,
+						radius: 0.68,
+						feather: 0.35,
+						roundness: 1,
+						mode: 'color',
+						color: '#000000',
+						center: [0.5, 0.5],
+					}}
+				/>
+				<Still
+					id="effects-mirror-preview"
+					component={EffectsMirrorPreview}
+					width={1280}
+					height={720}
+					defaultProps={{direction: 'horizontal', position: 0.5, invert: false}}
+				/>
+				<Still
+					id="effects-scale-preview"
+					component={EffectsScalePreview}
+					width={1280}
+					height={720}
+					defaultProps={{scale: 0.8, horizontal: true, vertical: true}}
+				/>
+				<Still
+					id="effects-xy-translate-preview"
+					component={EffectsXyTranslatePreview}
+					width={1280}
+					height={720}
+					defaultProps={{x: 180, y: 90}}
+				/>
+				<Still
+					id="effects-uv-translate-preview"
+					component={EffectsUvTranslatePreview}
+					width={1280}
+					height={720}
+					defaultProps={{u: 0.15, v: 0.125}}
+				/>
+				<Still
+					id="effects-barrel-distortion-preview"
+					component={EffectsBarrelDistortionPreview}
+					width={1280}
+					height={720}
+					defaultProps={{amount: 0.28}}
+				/>
+				<Still
+					id="effects-fisheye-preview"
+					component={EffectsFisheyePreview}
+					width={1280}
+					height={720}
+					defaultProps={{
+						fieldOfView: 2.5,
+						radius: 1.2,
+						zoom: 1,
+						center: [0.5, 0.5],
+					}}
+				/>
+				<Still
+					id="effects-chromatic-aberration-preview"
+					component={EffectsChromaticAberrationPreview}
+					width={1280}
+					height={720}
+					defaultProps={{amount: 12, angle: 0}}
+				/>
+				<Still
+					id="effects-blur-preview"
+					component={EffectsBlurPreview}
+					width={1280}
+					height={720}
+					defaultProps={{radius: 40, horizontal: true, vertical: true}}
+				/>
+				<Still
+					id="effects-linear-progressive-blur-preview"
+					component={EffectsLinearProgressiveBlurPreview}
+					width={1280}
+					height={720}
+					defaultProps={{
+						start: [0, 0.5],
+						end: [1, 0.5],
+						startBlur: 0,
+						endBlur: 50,
+					}}
+				/>
+				<Still
+					id="effects-wave-preview"
+					component={EffectsWavePreview}
+					width={1280}
+					height={720}
+					defaultProps={{
+						phase: 1.2,
+						amplitude: 50,
+						wavelength: 200,
+						direction: 'horizontal',
+					}}
+				/>
+				<Still
+					id="effects-halftone-preview"
+					component={EffectsHalftonePreview}
+					width={1280}
+					height={720}
+					defaultProps={{
+						shape: 'circle',
+						dotSize: 8,
+						dotSpacing: 7,
+						rotation: 12,
+						colorMode: 'solid',
+						dotColor: '#0B84F3',
+						invert: false,
+					}}
+				/>
+				<Still
+					id="effects-pixel-dissolve-preview"
+					component={EffectsPixelDissolvePreview}
+					width={1280}
+					height={720}
+					defaultProps={{
+						progress: 0.4,
+						columns: 12,
+						rows: 12,
+						seed: 0,
+						feather: 0.15,
+					}}
+				/>
+				<Still
+					id="effects-halftone-linear-gradient-preview"
+					component={EffectsHalftoneLinearGradientPreview}
+					width={1280}
+					height={720}
+					defaultProps={{
+						firstStopDotSize: 0,
+						secondStopDotSize: 40,
+						firstStopPosition: [0, 0.5],
+						secondStopPosition: [1, 0.5],
+						gridSize: 24,
+						colorMode: 'solid',
+						dotColor: '#0b84f3',
+					}}
+				/>
+				<Still
+					id="effects-dot-grid-preview"
+					component={EffectsDotGridPreview}
+					width={1280}
+					height={720}
+					defaultProps={{
+						dotSize: 16,
+						gridSize: 20,
+						invert: false,
+					}}
+				/>
+				<Still
+					id="effects-noise-preview"
+					component={EffectsNoisePreview}
+					width={1280}
+					height={720}
+					defaultProps={{
+						amount: 0.25,
+						seed: 0,
+						premultiply: false,
+					}}
+				/>
+				<Still
+					id="effects-white-noise-preview"
+					component={EffectsWhiteNoisePreview}
+					width={1280}
+					height={720}
+					defaultProps={{
+						amount: 1,
+						seed: 0,
+					}}
+				/>
+				<Still
+					id="effects-scanlines-preview"
+					component={EffectsScanlinesPreview}
+					width={1280}
+					height={720}
+					defaultProps={{
+						amount: 0.6,
+						spacing: 8,
+						thickness: 2,
+						offset: 0,
+						premultiply: false,
+					}}
+				/>
+				<Still
+					id="effects-lines-preview"
+					component={EffectsLinesPreview}
+					width={1280}
+					height={720}
+					defaultProps={{
+						direction: 'horizontal',
+						thickness: 40,
+						gap: 0,
+						angle: 20,
+						offset: 0,
+					}}
+				/>
+				<Still
+					id="effects-rings-preview"
+					component={EffectsRingsPreview}
+					width={1280}
+					height={720}
+					defaultProps={{
+						center: [0.5, 0.5],
+						thickness: 40,
+						gap: 0,
+						offset: 0,
+					}}
+				/>
+				<Still
+					id="effects-waves-preview"
+					component={EffectsWavesPreview}
+					width={1280}
+					height={720}
+					defaultProps={{
+						direction: 'horizontal',
+						thickness: 40,
+						gap: 0,
+						angle: 0,
+						offset: 0,
+						amplitude: 24,
+						wavelength: 160,
+						phase: 45,
+					}}
+				/>
+				<Still
+					id="effects-zigzag-preview"
+					component={EffectsZigzagPreview}
+					width={1280}
+					height={720}
+					defaultProps={{
+						direction: 'horizontal',
+						thickness: 40,
+						gap: 0,
+						angle: 0,
+						offset: 0,
+						amplitude: 40,
+						wavelength: 160,
+					}}
+				/>
+				<Still
+					id="effects-shine-preview"
+					component={EffectsShinePreview}
+					width={1280}
+					height={720}
+					defaultProps={{
+						progress: 0.5,
+						angle: 30,
+						haloSigma: 200,
+						coreSigma: 65,
+						haloIntensity: 0.3,
+						coreIntensity: 0.4,
+					}}
+				/>
+				<Still
+					id="effects-speckle-preview"
+					component={EffectsSpecklePreview}
+					width={1280}
+					height={720}
+					defaultProps={{density: 0.14, size: 4, randomness: 1}}
+				/>
+				<Still
+					id="effects-starburst-preview"
+					component={EffectsStarburstPreview}
+					width={1280}
+					height={720}
+					defaultProps={{
+						rays: 16,
+						rotation: 0,
+						smoothness: 0,
+						origin: [0.5, 0.5],
+					}}
+				/>
+				<Still
+					id="effects-light-leak-preview"
+					component={EffectsLightLeakPreview}
+					width={1280}
+					height={720}
+					defaultProps={{seed: 0, hueShift: 0, progress: 0.5}}
+				/>
 			</Folder>
 			<Still
 				component={AllTemplates}

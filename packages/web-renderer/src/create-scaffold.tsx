@@ -136,6 +136,7 @@ export function createScaffold<Props extends Record<string, unknown>>({
 	defaultCodec,
 	defaultOutName,
 	allowHtmlInCanvas,
+	pixelDensity,
 }: {
 	width: number;
 	height: number;
@@ -154,6 +155,7 @@ export function createScaffold<Props extends Record<string, unknown>>({
 	defaultCodec: Codec | null;
 	defaultOutName: string | null;
 	allowHtmlInCanvas: boolean;
+	pixelDensity: number;
 }): {
 	delayRenderScope: DelayRenderScope;
 	div: HTMLDivElement;
@@ -276,28 +278,31 @@ export function createScaffold<Props extends Record<string, unknown>>({
 									defaultVideoImageFormat: null,
 									defaultPixelFormat: null,
 									defaultProResProfile: null,
+									defaultSampleRate: null,
 								},
 								folders: [],
 							}}
 						>
-							<Internals.RenderAssetManagerProvider
-								collectAssets={collectAssets}
-							>
-								<UpdateTime
-									audioEnabled={audioEnabled}
-									videoEnabled={videoEnabled}
-									logLevel={logLevel}
-									compId={id}
-									initialFrame={initialFrame}
-									timeUpdater={timeUpdater}
+							<Internals.PixelDensityContext.Provider value={pixelDensity}>
+								<Internals.RenderAssetManagerProvider
+									collectAssets={collectAssets}
 								>
-									<Internals.CanUseRemotionHooks.Provider value>
-										{/**
-										 * @ts-expect-error	*/}
-										<Component {...resolvedProps} />
-									</Internals.CanUseRemotionHooks.Provider>
-								</UpdateTime>
-							</Internals.RenderAssetManagerProvider>
+									<UpdateTime
+										audioEnabled={audioEnabled}
+										videoEnabled={videoEnabled}
+										logLevel={logLevel}
+										compId={id}
+										initialFrame={initialFrame}
+										timeUpdater={timeUpdater}
+									>
+										<Internals.CanUseRemotionHooks.Provider value>
+											{/**
+											 * @ts-expect-error	*/}
+											<Component {...resolvedProps} />
+										</Internals.CanUseRemotionHooks.Provider>
+									</UpdateTime>
+								</Internals.RenderAssetManagerProvider>
+							</Internals.PixelDensityContext.Provider>
 						</Internals.CompositionManager.Provider>
 					</Internals.DelayRenderContextType.Provider>
 				</Internals.RemotionEnvironmentContext.Provider>

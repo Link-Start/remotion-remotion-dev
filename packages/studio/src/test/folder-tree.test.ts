@@ -2,12 +2,18 @@ import {expect, test} from 'bun:test';
 import type {ComponentType} from 'react';
 import React from 'react';
 import {getZodIfPossible} from '../components/get-zod-if-possible';
-import {createFolderTree} from '../helpers/create-folder-tree';
+import {createFolderTree, getKeysToExpand} from '../helpers/create-folder-tree';
 
 const SampleComp: React.FC<{}> = () => null;
 const component = React.lazy(() =>
 	Promise.resolve({default: SampleComp as ComponentType<unknown>}),
 );
+const testFolder = (name: string, parent: string | null) => ({
+	name,
+	parent,
+	nonce: [[0, 0]] as [[number, number]],
+	stack: null,
+});
 
 const getZ = async () => {
 	const z = await getZodIfPossible();
@@ -55,18 +61,13 @@ test('Should create a good folder tree with 1 item inside and 1 item outside', a
 				stack: null,
 			},
 		],
-		[
-			{
-				name: 'my-folder',
-				parent: null,
-				nonce: [[0, 0]],
-			},
-		],
+		[testFolder('my-folder', null)],
 		{},
 	);
 
 	expect(tree).toEqual([
 		{
+			folder: testFolder('my-folder', null),
 			folderName: 'my-folder',
 			items: [
 				{
@@ -139,27 +140,16 @@ test('Should handle nested folders well', async () => {
 			},
 		],
 		[
-			{
-				name: 'my-second-folder',
-				parent: 'my-third-folder',
-				nonce: [[0, 0]],
-			},
-			{
-				name: 'my-third-folder',
-				parent: null,
-				nonce: [[0, 0]],
-			},
-			{
-				name: 'my-folder',
-				parent: 'my-third-folder/my-second-folder',
-				nonce: [[0, 0]],
-			},
+			testFolder('my-second-folder', 'my-third-folder'),
+			testFolder('my-third-folder', null),
+			testFolder('my-folder', 'my-third-folder/my-second-folder'),
 		],
 		{},
 	);
 
 	expect(tree).toEqual([
 		{
+			folder: testFolder('my-third-folder', null),
 			folderName: 'my-third-folder',
 			expanded: false,
 			key: 'my-third-folder',
@@ -167,6 +157,7 @@ test('Should handle nested folders well', async () => {
 			items: [
 				{
 					type: 'folder',
+					folder: testFolder('my-second-folder', 'my-third-folder'),
 					expanded: false,
 					key: 'my-second-folder',
 					folderName: 'my-second-folder',
@@ -174,6 +165,10 @@ test('Should handle nested folders well', async () => {
 					items: [
 						{
 							type: 'folder',
+							folder: testFolder(
+								'my-folder',
+								'my-third-folder/my-second-folder',
+							),
 							key: 'my-folder',
 							folderName: 'my-folder',
 							parentName: 'my-third-folder/my-second-folder',
@@ -208,22 +203,28 @@ test('Should handle nested folders well', async () => {
 	]);
 });
 
+test('getKeysToExpand lists nested folder keys from leaf to root', () => {
+	expect(
+		getKeysToExpand('my-folder', 'my-third-folder/my-second-folder'),
+	).toEqual([
+		'my-third-folder/my-second-folder/my-folder',
+		'my-third-folder/my-second-folder',
+		'no-parent/my-third-folder',
+	]);
+});
+
+test('getKeysToExpand lists direct child folder and root folder', () => {
+	expect(getKeysToExpand('html-in-canvas', 'video-tests')).toEqual([
+		'video-tests/html-in-canvas',
+		'no-parent/video-tests',
+	]);
+});
+
 test('Should throw if two folders with the same name', () => {
 	expect(() =>
 		createFolderTree(
 			[],
-			[
-				{
-					name: 'my-folder',
-					parent: null,
-					nonce: [[0, 0]],
-				},
-				{
-					name: 'my-folder',
-					parent: null,
-					nonce: [[0, 0]],
-				},
-			],
+			[testFolder('my-folder', null), testFolder('my-folder', null)],
 			{},
 		),
 	).toThrow(

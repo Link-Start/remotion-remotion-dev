@@ -1,13 +1,25 @@
-import React, {forwardRef, useMemo} from 'react';
+import React, {forwardRef, useContext, useMemo, useState} from 'react';
 import type {SequenceControls} from './CompositionManager.js';
-import type {
-	SchemaKeysRecord,
-	SequenceSchema,
-} from './sequence-field-schema.js';
+import {deleteNestedKey} from './delete-nested-key.js';
+import {getCodeValuesCtx} from './effects/use-memoized-effects.js';
+import {
+	flattenActiveSchema,
+	getFlatSchemaWithAllKeys,
+} from './flatten-schema.js';
+import type {SequenceSchema} from './sequence-field-schema.js';
+import {OverrideIdsToNodePathsGettersContext} from './sequence-node-path.js';
+import {
+	VisualModeCodeValuesContext,
+	VisualModeDragOverridesContext,
+} from './SequenceManager.js';
+import {useCurrentFrame} from './use-current-frame.js';
 import {useRemotionEnvironment} from './use-remotion-environment.js';
-import {useSchema} from './use-schema.js';
+import {computeEffectiveSchemaValuesDotNotation} from './use-schema.js';
 
-const getNestedValue = (obj: Record<string, unknown>, key: string): unknown => {
+export const getNestedValue = (
+	obj: Record<string, unknown>,
+	key: string,
+): unknown => {
 	const parts = key.split('.');
 	let current: unknown = obj;
 	for (const part of parts) {
@@ -23,19 +35,45 @@ const getNestedValue = (obj: Record<string, unknown>, key: string): unknown => {
 	return current;
 };
 
-const mergeValues = (
+export const readValuesFromProps = (
 	props: Record<string, unknown>,
-	values: Record<string, unknown>,
-	schemaKeys: string[],
+	keys: string[],
 ): Record<string, unknown> => {
+	const out: Record<string, unknown> = {};
+	for (const key of keys) {
+		out[key] = getNestedValue(props, key);
+	}
+
+	return out;
+};
+
+export const selectActiveKeys = (
+	schema: SequenceSchema,
+	values: Record<string, unknown>,
+): string[] => {
+	return Object.keys(flattenActiveSchema(schema, (key) => values[key]));
+};
+
+export const mergeValues = ({
+	props,
+	valuesDotNotation,
+	schemaKeys,
+	propsToDelete,
+}: {
+	props: Record<string, unknown>;
+	valuesDotNotation: Record<string, unknown>;
+	schemaKeys: string[];
+	propsToDelete: Set<string>;
+}): Record<string, unknown> => {
 	const merged = {...props};
 
 	for (const key of schemaKeys) {
-		const value = values[key];
+		const value = valuesDotNotation[key];
 		const parts = key.split('.');
 
 		if (parts.length === 1) {
 			merged[key] = value;
+
 			continue;
 		}
 
@@ -56,66 +94,146 @@ const mergeValues = (
 		current[parts[parts.length - 1]] = value;
 	}
 
+	deleteNestedKey(merged, propsToDelete);
+
 	return merged;
 };
 
-export const wrapInSchema = <S extends SequenceSchema, Props extends object>(
+const stackToOverrideMap: Record<string, string> = {};
+
+export const wrapInSchema = <S extends SequenceSchema, Props extends object>({
+	Component,
+	schema,
+	supportsEffects,
+}: {
 	Component: React.ComponentType<
-		Props & {readonly controls: SequenceControls | undefined}
-	>,
-	schema: S,
-): React.ComponentType<Props> => {
-	const schemaKeys = Object.keys(schema);
+		Props & {readonly _experimentalControls: SequenceControls | undefined}
+	>;
+	schema: S;
+	supportsEffects: boolean;
+}): React.ComponentType<Props> => {
+	// Schema is static for a component, so we move this outside
+	const flatSchema = getFlatSchemaWithAllKeys(schema);
+	const flatKeys = Object.keys(flatSchema);
 
 	const Wrapped = forwardRef<unknown, Props>((props, ref) => {
 		const env = useRemotionEnvironment();
-		if (
-			!env.isStudio ||
-			env.isReadOnlyStudio ||
-			env.isRendering ||
-			!process.env.EXPERIMENTAL_VISUAL_MODE_ENABLED
-		) {
+
+		if (!env.isStudio || env.isReadOnlyStudio || env.isRendering) {
 			return React.createElement(Component, {
 				...props,
-				controls: null,
+				_experimentalControls: null,
 				ref,
-			} as Props & {controls: SequenceControls | undefined; ref: typeof ref});
+			} as Props & {
+				_experimentalControls: SequenceControls | undefined;
+				ref: typeof ref;
+			});
 		}
 
 		// eslint-disable-next-line react-hooks/rules-of-hooks
-		const schemaInput = useMemo(
-			() => {
-				const input = {} as Record<string, unknown>;
-				for (const key of schemaKeys) {
-					input[key] = getNestedValue(props as Record<string, unknown>, key);
-				}
+		const {codeValues} = useContext(VisualModeCodeValuesContext);
+		// eslint-disable-next-line react-hooks/rules-of-hooks
+		const {getDragOverrides} = useContext(VisualModeDragOverridesContext);
+		// eslint-disable-next-line react-hooks/rules-of-hooks
+		const nodePathMapping = useContext(OverrideIdsToNodePathsGettersContext);
+		// eslint-disable-next-line react-hooks/rules-of-hooks
+		const frame = useCurrentFrame();
 
-				return input as SchemaKeysRecord<S>;
-			},
+		// If the parent has passed `_experimentalControls`, we should not override it.
+		// @ts-expect-error
+		if (props._experimentalControls) {
+			return React.createElement(Component, {
+				...props,
+				ref,
+			} as unknown as Props & {
+				_experimentalControls: SequenceControls | undefined;
+				ref: typeof ref;
+			});
+		}
+
+		// eslint-disable-next-line react-hooks/rules-of-hooks
+		const [overrideId] = useState(() => {
+			const {stack} = props as {stack?: string};
+			if (!stack) {
+				return String(Math.random());
+			}
+
+			const existingOverrideId = stackToOverrideMap[stack];
+			if (existingOverrideId) {
+				return existingOverrideId;
+			}
+
+			const newOverrideId = String(Math.random());
+			stackToOverrideMap[stack] = newOverrideId;
+			return newOverrideId;
+		});
+		const nodePath =
+			nodePathMapping.overrideIdToNodePathMappings[overrideId] ?? null;
+
+		// Read the runtime values for every flat key from the JSX props,
+		// memoized on the leaf values so the object reference is stable
+		// when nothing changed — otherwise downstream `useMemo`s churn and
+		// effects (e.g. Sequence registration) re-fire every render.
+		const runtimeValues = flatKeys.map((k) =>
+			getNestedValue(props as Record<string, unknown>, k),
+		);
+		// eslint-disable-next-line react-hooks/rules-of-hooks
+		const currentRuntimeValueDotNotation = useMemo(
+			() => readValuesFromProps(props as Record<string, unknown>, flatKeys),
 			// eslint-disable-next-line react-hooks/exhaustive-deps
-			schemaKeys.map((key) =>
-				getNestedValue(props as Record<string, unknown>, key),
-			),
+			runtimeValues,
 		);
 
 		// eslint-disable-next-line react-hooks/rules-of-hooks
-		const {controls, values} = useSchema(
-			schema,
-			schemaInput as SchemaKeysRecord<S> &
-				Record<Exclude<keyof SchemaKeysRecord<S>, keyof S>, never>,
-		);
+		const controls = useMemo((): SequenceControls => {
+			return {
+				schema,
+				currentRuntimeValueDotNotation,
+				overrideId,
+				supportsEffects,
+			};
+		}, [currentRuntimeValueDotNotation, overrideId]);
 
-		const mergedProps = mergeValues(
-			props as Record<string, unknown>,
-			values as Record<string, unknown>,
-			schemaKeys,
-		);
+		// 3. Apply drag/code overrides on top of the runtime values.
+		// eslint-disable-next-line react-hooks/rules-of-hooks
+		const {merged: valuesDotNotation, propsToDelete} = useMemo(() => {
+			return computeEffectiveSchemaValuesDotNotation({
+				schema,
+				currentValue: currentRuntimeValueDotNotation,
+				overrideValues: nodePath === null ? {} : getDragOverrides(nodePath),
+				propStatus:
+					nodePath === null
+						? undefined
+						: getCodeValuesCtx(codeValues, nodePath),
+				frame,
+			});
+		}, [
+			currentRuntimeValueDotNotation,
+			getDragOverrides,
+			nodePath,
+			codeValues,
+			frame,
+		]);
+
+		// 4. Eliminate values forbidden by the resolved discriminated union.
+		const activeKeys = selectActiveKeys(schema, valuesDotNotation);
+
+		// 5. Apply the active values back onto the props.
+		const mergedProps = mergeValues({
+			props: props as Record<string, unknown>,
+			valuesDotNotation,
+			schemaKeys: activeKeys,
+			propsToDelete,
+		});
 
 		return React.createElement(Component, {
 			...mergedProps,
-			controls,
+			_experimentalControls: controls,
 			ref,
-		} as Props & {controls: SequenceControls | undefined; ref: typeof ref});
+		} as Props & {
+			_experimentalControls: SequenceControls | undefined;
+			ref: typeof ref;
+		});
 	});
 
 	Wrapped.displayName = `wrapInSchema(${Component.displayName || Component.name || 'Component'})`;

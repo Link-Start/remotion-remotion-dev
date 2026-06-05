@@ -252,6 +252,7 @@ const renderHandler = async <Provider extends CloudProvider>({
 				defaultPixelFormat: null,
 				defaultProResProfile: null,
 				defaultVideoImageFormat: null,
+				defaultSampleRate: null,
 			},
 			imageFormat: params.imageFormat,
 			serializedInputPropsWithCustomSchema,
@@ -313,6 +314,7 @@ const renderHandler = async <Provider extends CloudProvider>({
 			pixelFormat: params.pixelFormat ?? RenderInternals.DEFAULT_PIXEL_FORMAT,
 			proResProfile: params.proResProfile ?? undefined,
 			x264Preset: params.x264Preset,
+			gopSize: params.gopSize ?? null,
 			onDownload: onDownloadsHelper(params.logLevel),
 			overwrite: false,
 			chromiumOptions: params.chromiumOptions,
@@ -356,6 +358,7 @@ const renderHandler = async <Provider extends CloudProvider>({
 			// Not doing telemetry for the individual chunks
 			licenseKey: null,
 			isProduction: false,
+			sampleRate: params.sampleRate,
 		})
 			.then(({slowestFrames}) => {
 				RenderInternals.Log.verbose(

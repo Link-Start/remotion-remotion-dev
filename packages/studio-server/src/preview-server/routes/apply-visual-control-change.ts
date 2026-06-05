@@ -1,5 +1,4 @@
 import {readFileSync} from 'node:fs';
-import path from 'node:path';
 import type {File} from '@babel/types';
 import {RenderInternals} from '@remotion/renderer';
 import type {
@@ -10,6 +9,7 @@ import * as recast from 'recast';
 import {parseAst, serializeAst} from '../../codemods/parse-ast';
 import {applyCodemod} from '../../codemods/recast-mods';
 import {writeFileAndNotifyFileWatchers} from '../../file-watcher';
+import {resolveFileInsideProject} from '../../helpers/resolve-file-inside-project';
 import type {ApiHandler} from '../api-types';
 import {formatLogFileLocation} from '../format-log-file-location';
 import {waitForLiveEventsListener} from '../live-events';
@@ -19,7 +19,7 @@ import {
 	suppressUndoStackInvalidation,
 } from '../undo-stack';
 import {suppressBundlerUpdateForFile} from '../watch-ignore-next-change';
-import {warnAboutPrettierOnce} from './log-update';
+import {warnAboutPrettierOnce} from './log-updates/log-update';
 
 const getVisualControlChangeLine = (file: File, changeId: string): number => {
 	let line = 1;
@@ -52,13 +52,11 @@ export const applyVisualControlHandler: ApiHandler<
 		{indent: false, logLevel},
 		`[apply-visual-control] Received request for ${fileName} with ${changes.length} changes`,
 	);
-	const absolutePath = path.resolve(remotionRoot, fileName);
-	const fileRelativeToRoot = path.relative(remotionRoot, absolutePath);
-	if (fileRelativeToRoot.startsWith('..')) {
-		throw new Error(
-			'Cannot apply visual control change to a file outside the project',
-		);
-	}
+	const {absolutePath} = resolveFileInsideProject({
+		remotionRoot,
+		fileName,
+		action: 'apply visual control change to',
+	});
 
 	const fileContents = readFileSync(absolutePath, 'utf-8');
 	const ast = parseAst(fileContents);
@@ -105,19 +103,20 @@ export const applyVisualControlHandler: ApiHandler<
 	pushToUndoStack({
 		filePath: absolutePath,
 		oldContents: fileContents,
+		newContents: null,
 		logLevel,
 		remotionRoot,
 		logLine,
 		description: {
-			undoMessage: 'Undid visual control change',
-			redoMessage: 'Redid visual control change',
+			undoMessage: '↩️  Visual control change',
+			redoMessage: '↪️  Visual control change',
 		},
 		entryType: 'visual-control',
 		suppressHmrOnFileRestore: true,
 	});
 	suppressUndoStackInvalidation(absolutePath);
 	suppressBundlerUpdateForFile(absolutePath);
-	writeFileAndNotifyFileWatchers(absolutePath, output);
+	writeFileAndNotifyFileWatchers(absolutePath, output, undefined);
 
 	waitForLiveEventsListener().then((listener) => {
 		listener.sendEventToClient({
@@ -139,7 +138,7 @@ export const applyVisualControlHandler: ApiHandler<
 	});
 	RenderInternals.Log.info(
 		{indent: false, logLevel},
-		`${RenderInternals.chalk.blueBright(`${locationLabel}:`)} Applied visual control changes`,
+		`${RenderInternals.chalk.blueBright(`${locationLabel}`)} Applied visual control changes`,
 	);
 	if (!formatted) {
 		warnAboutPrettierOnce(logLevel);

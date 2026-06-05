@@ -1,6 +1,7 @@
 import type {LogLevel} from 'remotion';
 import type {PcmS16AudioData} from '../convert-audiodata/convert-audiodata';
 import {extractFrameAndAudio} from '../extract-frame-and-audio';
+import type {MediaRequestInit} from '../request-init';
 
 export type MessageFromMainTab =
 	| {
@@ -48,12 +49,13 @@ export type ExtractFrameRequest = {
 	includeAudio: boolean;
 	includeVideo: boolean;
 	loop: boolean;
-	audioStreamIndex: number;
+	audioStreamIndex: number | null;
 	trimAfter: number | undefined;
 	trimBefore: number | undefined;
 	fps: number;
 	maxCacheSize: number;
 	credentials: RequestCredentials | undefined;
+	requestInit?: MediaRequestInit;
 };
 
 // Send to other channels a message to let them know that the
@@ -104,6 +106,7 @@ export const addBroadcastChannelListener = () => {
 						fps: data.fps,
 						maxCacheSize: data.maxCacheSize,
 						credentials: data.credentials,
+						requestInit: data.requestInit,
 					});
 
 					if (result.type === 'cannot-decode') {

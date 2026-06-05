@@ -9,6 +9,7 @@ import React, {
 } from 'react';
 import type {CanvasContent} from 'remotion';
 import {Internals, watchStaticFile} from 'remotion';
+import {StudioServerConnectionCtx} from '../helpers/client-id';
 import {BACKGROUND} from '../helpers/colors';
 import type {AssetMetadata} from '../helpers/get-asset-metadata';
 import {getAssetMetadata} from '../helpers/get-asset-metadata';
@@ -16,6 +17,7 @@ import {
 	applyZoomAroundFocalPoint,
 	getEffectiveTranslation,
 } from '../helpers/get-effective-translation';
+import {useCachedCompositionComponentInfo} from '../helpers/open-in-editor';
 import {
 	MAX_ZOOM,
 	MIN_ZOOM,
@@ -29,9 +31,11 @@ import {EditorZoomGesturesContext} from '../state/editor-zoom-gestures';
 import EditorGuides from './EditorGuides';
 import {EditorRulers} from './EditorRuler';
 import {useIsRulerVisible} from './EditorRuler/use-is-ruler-visible';
+import {importAssets} from './import-assets';
 import {SPACING_UNIT} from './layout';
 import {VideoPreview} from './Preview';
 import {ResetZoomButton} from './ResetZoomButton';
+import {useResolvedStack} from './Timeline/use-resolved-stack';
 
 const getContainerStyle = (
 	editorZoomGestures: boolean,
@@ -58,6 +62,30 @@ type WebKitGestureEvent = UIEvent & {
 	clientY: number;
 };
 
+const isFileDragEvent = (event: DragEvent): boolean => {
+	return Array.from(event.dataTransfer?.types ?? []).includes('Files');
+};
+
+const isDragEventInsideCanvas = (event: DragEvent): boolean => {
+	const {current} = canvasRef;
+	if (!current) {
+		return false;
+	}
+
+	const targetIsNode = event.target instanceof Node;
+	if (targetIsNode && current.contains(event.target as Node)) {
+		return true;
+	}
+
+	const rect = current.getBoundingClientRect();
+	return (
+		event.clientX >= rect.left &&
+		event.clientX <= rect.right &&
+		event.clientY >= rect.top &&
+		event.clientY <= rect.bottom
+	);
+};
+
 export const Canvas: React.FC<{
 	readonly canvasContent: CanvasContent;
 	readonly size: Size;
@@ -79,10 +107,42 @@ export const Canvas: React.FC<{
 	const config = Internals.useUnsafeVideoConfig();
 	const areRulersVisible = useIsRulerVisible();
 	const {editorShowGuides} = useContext(EditorShowGuidesContext);
+	const {compositions} = useContext(Internals.CompositionManager);
+	const {previewServerState} = useContext(StudioServerConnectionCtx);
+	const [isAddingAsset, setIsAddingAsset] = useState(false);
 
 	const [assetResolution, setAssetResolution] = useState<AssetMetadata | null>(
 		null,
 	);
+
+	const currentCompositionId =
+		canvasContent.type === 'composition' ? canvasContent.compositionId : null;
+	const currentComposition = useMemo(() => {
+		if (currentCompositionId === null) {
+			return null;
+		}
+
+		return (
+			compositions.find(
+				(composition) => composition.id === currentCompositionId,
+			) ?? null
+		);
+	}, [compositions, currentCompositionId]);
+	const resolvedCompositionLocation = useResolvedStack(
+		currentComposition?.stack ?? null,
+	);
+	const compositionFile = resolvedCompositionLocation?.source ?? null;
+	const compositionComponentInfo = useCachedCompositionComponentInfo({
+		compositionFile,
+		compositionId: currentCompositionId,
+	});
+	const canDropAssets =
+		previewServerState.type === 'connected' &&
+		!window.remotion_isReadOnlyStudio &&
+		compositionComponentInfo?.canAddSequence === true &&
+		currentCompositionId !== null &&
+		compositionFile !== null &&
+		!isAddingAsset;
 
 	const contentDimensions = useMemo(() => {
 		if (
@@ -533,6 +593,72 @@ export const Canvas: React.FC<{
 	useEffect(() => {
 		fetchMetadata();
 	}, [fetchMetadata]);
+
+	const onDragOver = useCallback(
+		(event: DragEvent) => {
+			if (
+				!canDropAssets ||
+				!isFileDragEvent(event) ||
+				!isDragEventInsideCanvas(event)
+			) {
+				return;
+			}
+
+			event.preventDefault();
+			if (event.dataTransfer) {
+				event.dataTransfer.dropEffect = 'copy';
+			}
+		},
+		[canDropAssets],
+	);
+
+	const onDrop = useCallback(
+		async (event: DragEvent) => {
+			if (
+				!canDropAssets ||
+				compositionFile === null ||
+				currentCompositionId === null ||
+				!isFileDragEvent(event) ||
+				!isDragEventInsideCanvas(event)
+			) {
+				return;
+			}
+
+			event.preventDefault();
+			event.stopPropagation();
+
+			const files = Array.from(event.dataTransfer?.files ?? []);
+			if (files.length === 0) {
+				return;
+			}
+
+			setIsAddingAsset(true);
+			try {
+				await importAssets({
+					files,
+					compositionFile,
+					compositionId: currentCompositionId,
+				});
+			} finally {
+				setIsAddingAsset(false);
+			}
+		},
+		[canDropAssets, compositionFile, currentCompositionId],
+	);
+
+	useEffect(() => {
+		if (!canDropAssets) {
+			return;
+		}
+
+		document.addEventListener('dragover', onDragOver, {capture: true});
+		document.addEventListener('drop', onDrop, {capture: true});
+
+		return () => {
+			document.removeEventListener('dragover', onDragOver, {capture: true});
+			document.removeEventListener('drop', onDrop, {capture: true});
+		};
+	}, [canDropAssets, onDragOver, onDrop]);
 
 	return (
 		<>

@@ -24,7 +24,6 @@ const {
 	enableCrossSiteIsolationOption,
 	askAIOption,
 	experimentalClientSideRenderingOption,
-	experimentalVisualModeOption,
 	keyboardShortcutsOption,
 	forceNewStudioOption,
 	numberOfSharedAudioTagsOption,
@@ -35,6 +34,7 @@ const {
 	noOpenOption,
 	portOption,
 	browserOption,
+	previewSampleRateOption,
 } = BrowserSafeApis.options;
 
 export const studioCommand = async (
@@ -151,14 +151,6 @@ export const studioCommand = async (
 		);
 	}
 
-	const useVisualMode = experimentalVisualModeOption.getValue({
-		commandLine: parsedCli,
-	}).value;
-
-	if (useVisualMode) {
-		Log.warn({indent: false, logLevel}, 'Enabling experimental visual mode.');
-	}
-
 	const result = await StudioServerInternals.startStudio({
 		previewEntry: require.resolve('@remotion/studio/previewEntry'),
 		browserArgs: parsedCli['browser-args'],
@@ -171,7 +163,6 @@ export const studioCommand = async (
 		desiredPort,
 		keyboardShortcutsEnabled,
 		experimentalClientSideRenderingEnabled,
-		experimentalVisualModeEnabled: useVisualMode,
 		maxTimelineTracks: ConfigInternals.getMaxTimelineTracks(),
 		remotionRoot,
 		relativePublicDir,
@@ -193,6 +184,9 @@ export const studioCommand = async (
 		binariesDirectory,
 		forceIPv4: ipv4Option.getValue({commandLine: parsedCli}).value,
 		audioLatencyHint: audioLatencyHintOption.getValue({
+			commandLine: parsedCli,
+		}).value,
+		previewSampleRate: previewSampleRateOption.getValue({
 			commandLine: parsedCli,
 		}).value,
 		enableCrossSiteIsolation,

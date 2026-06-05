@@ -4,6 +4,7 @@ import {
 	Sequence,
 	useRemotionEnvironment,
 	useVideoConfig,
+	type EffectsProp,
 	type SequenceControls,
 	type SequenceProps,
 	type SequenceSchema,
@@ -12,12 +13,22 @@ import {GifForDevelopment} from './GifForDevelopment';
 import {GifForRendering} from './GifForRendering';
 import type {RemotionGifProps} from './props';
 
+const {
+	addSequenceStackTraces,
+	useMemoizedEffectDefinitions,
+	useMemoizedEffects,
+	wrapInSchema,
+	durationInFramesField,
+	fromField,
+} = Internals;
+
 export type GifProps = Omit<
 	SequenceProps,
-	'children' | 'durationInFrames' | 'layout'
+	'children' | 'durationInFrames' | 'layout' | '_remotionInternalEffects'
 > &
 	RemotionGifProps & {
 		readonly durationInFrames?: number;
+		readonly effects?: EffectsProp;
 	};
 
 /*
@@ -25,6 +36,8 @@ export type GifProps = Omit<
  * @see [Documentation](https://remotion.dev/docs/gif)
  */
 const gifSchema = {
+	durationInFrames: durationInFramesField,
+	from: fromField,
 	playbackRate: {
 		type: 'number',
 		min: 0,
@@ -32,35 +45,11 @@ const gifSchema = {
 		step: 0.1,
 		default: 1,
 		description: 'Playback Rate',
+		hiddenFromList: false,
+		keyframable: false,
 	},
-	'style.translate': {
-		type: 'translate',
-		step: 1,
-		default: '0px 0px',
-		description: 'Position',
-	},
-	'style.scale': {
-		type: 'number',
-		min: 0.05,
-		max: 100,
-		step: 0.01,
-		default: 1,
-		description: 'Scale',
-	},
-	'style.rotate': {
-		type: 'rotation',
-		step: 1,
-		default: '0deg',
-		description: 'Rotation',
-	},
-	'style.opacity': {
-		type: 'number',
-		min: 0,
-		max: 1,
-		step: 0.01,
-		default: 1,
-		description: 'Opacity',
-	},
+	...Internals.sequenceVisualStyleSchema,
+	hidden: Internals.hiddenField,
 } as const satisfies SequenceSchema;
 
 const GifInner = ({
@@ -74,20 +63,31 @@ const GifInner = ({
 	loopBehavior,
 	id,
 	delayRenderTimeoutInMilliseconds,
+	requestInit,
 	durationInFrames,
 	style,
-	controls,
+	_experimentalControls: controls,
+	effects = [],
 	ref,
 	...sequenceProps
 }: GifProps & {
-	readonly controls?: SequenceControls | undefined;
+	readonly _experimentalControls?: SequenceControls | undefined;
 	readonly ref?: React.Ref<HTMLCanvasElement>;
 }) => {
 	const env = useRemotionEnvironment();
 	const {durationInFrames: videoDuration} = useVideoConfig();
 	const resolvedDuration = durationInFrames ?? videoDuration;
+	const refForOutline = React.useRef<HTMLElement | null>(null);
 
-	const gifProps: RemotionGifProps = {
+	const memoizedEffectDefinitions = useMemoizedEffectDefinitions(effects);
+	const memoizedEffects = useMemoizedEffects({
+		effects,
+		overrideId: controls?.overrideId ?? null,
+	});
+
+	const gifProps: RemotionGifProps & {
+		readonly effects: typeof memoizedEffects;
+	} = {
 		src,
 		width,
 		height,
@@ -98,13 +98,15 @@ const GifInner = ({
 		loopBehavior,
 		id,
 		delayRenderTimeoutInMilliseconds,
+		requestInit,
 		style,
+		effects: memoizedEffects,
 	};
 
 	const inner = env.isRendering ? (
 		<GifForRendering {...gifProps} ref={ref} />
 	) : (
-		<GifForDevelopment {...gifProps} ref={ref} />
+		<GifForDevelopment {...gifProps} ref={ref} refForOutline={refForOutline} />
 	);
 
 	return (
@@ -112,16 +114,23 @@ const GifInner = ({
 			layout="none"
 			durationInFrames={resolvedDuration}
 			name="<Gif>"
-			controls={controls}
+			_remotionInternalDocumentationLink="https://www.remotion.dev/docs/gif/gif"
+			_experimentalControls={controls}
+			_remotionInternalEffects={memoizedEffectDefinitions}
 			{...sequenceProps}
+			_remotionInternalRefForOutline={refForOutline}
 		>
 			{inner}
 		</Sequence>
 	);
 };
 
-export const Gif = Internals.wrapInSchema(GifInner, gifSchema);
+export const Gif = wrapInSchema({
+	Component: GifInner,
+	schema: gifSchema,
+	supportsEffects: true,
+});
 
 Gif.displayName = 'Gif';
 
-Internals.addSequenceStackTraces(Gif);
+addSequenceStackTraces(Gif);

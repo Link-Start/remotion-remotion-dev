@@ -43,11 +43,32 @@ export const MyComposition = () => {
 };
 ```
 
+You can also load HLS playlists (`.m3u8`):
+
+```tsx twoslash
+import {AbsoluteFill} from 'remotion';
+import {Video} from '@remotion/media';
+// ---cut---
+export const MyComposition = () => {
+  return (
+    <AbsoluteFill>
+      <Video src="https://stream.mux.com/nqGuji1CJuoPoU3iprRRhiy3HXiQN0201HLyliOg44HOU.m3u8" />
+    </AbsoluteFill>
+  );
+};
+```
+
+For more information on HLS support, see the [HLS documentation](/docs/hls).
+
 ## Props
 
 ### `src`
 
 The URL of the video to be rendered. Can be a remote URL or a local file referenced with [`staticFile()`](/docs/staticfile).
+
+### `effects?`<AvailableFrom v="4.0.464" />
+
+Apply [effects](/docs/effects/api) to the video frame after it has been drawn to the canvas.
 
 ### `from?`<AvailableFrom v="4.0.445" />
 
@@ -328,7 +349,11 @@ export const MyComposition = () => {
 };
 ```
 
-### `credentials?`<AvailableFrom v="4.0.437" />
+### ~~`credentials?`<AvailableFrom v="4.0.437" />~~
+
+:::note Deprecated
+Use [`requestInit`](#requestinit) instead.
+:::
 
 Controls the [`credentials`](https://developer.mozilla.org/en-US/docs/Web/API/Request/credentials) option of the `fetch()` requests made to retrieve the video data.
 
@@ -343,7 +368,28 @@ import {Video} from '@remotion/media';
 export const MyComposition = () => {
   return (
     <AbsoluteFill>
-      <Video credentials="include" src="https://example.com/protected-video.mp4" />
+      <Video requestInit={{credentials: 'include'}} src="https://example.com/protected-video.mp4" />
+    </AbsoluteFill>
+  );
+};
+```
+
+### `requestInit?`<AvailableFrom v="4.0.465" />
+
+Passes [`RequestInit`](https://developer.mozilla.org/en-US/docs/Web/API/RequestInit) options to the `fetch()` requests made to retrieve the video data.
+
+Set `cache` to `"no-store"` if a CDN or browser cache returns invalid range request responses.
+The value is captured when the component mounts; later updates to the prop are ignored, so passing an inline object is safe.
+
+```tsx twoslash
+import {AbsoluteFill} from 'remotion';
+import {Video} from '@remotion/media';
+
+// ---cut---
+export const MyComposition = () => {
+  return (
+    <AbsoluteFill>
+      <Video requestInit={{cache: 'no-store'}} src="https://remotion.media/video.mp4" />
     </AbsoluteFill>
   );
 };
@@ -408,6 +454,11 @@ Maps to [`<OffthreadVideo />` -> `pauseWhenBuffering`](/docs/offthreadvideo#paus
 
 Maps to [`<OffthreadVideo />` -> `onAutoPlayError`](/docs/offthreadvideo#onautoplayerror)
 
+#### `preservePitch?`<AvailableFrom v="4.0.463" />
+
+Maps to [`<OffthreadVideo />` -> `preservePitch`](/docs/offthreadvideo#preservepitch).  
+Only affects preview playback when falling back to [`<Html5Video>`](/docs/html5-video) or [`<OffthreadVideo>`](/docs/offthreadvideo).
+
 ### `disallowFallbackToOffthreadVideo?`
 
 By default, if the video cannot be embedded using this tag, [a fallback to `<OffthreadVideo>`](/docs/media/fallback) will be attempted.
@@ -422,13 +473,10 @@ When using [`@remotion/web-renderer`](/docs/web-renderer) for client-side render
 
 Shows a debug overlay on the video. This is useful for debugging the video playback.
 
-### `debugAudioScheduling?`
-
-Logs audio scheduling information to the console. This is useful for debugging audio playback timing issues.
-
 ## See also
 
 - [Source code for this component](https://github.com/remotion-dev/remotion/blob/main/packages/media/src/video/video.tsx)
+- [HLS support (HTTP Live Streaming)](/docs/hls)
 - [Comparison of video tags](/docs/video-tags)
 - [`<Audio>` (from `@remotion/media`)](/docs/media/audio)
 - [`<Html5Video>` (from `remotion`)](/docs/html5-video)

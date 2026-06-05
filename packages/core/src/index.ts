@@ -13,6 +13,7 @@ import type {
 } from './CompositionManager.js';
 import type {DelayRenderScope} from './delay-render.js';
 import {addSequenceStackTraces} from './enable-sequence-stack-traces.js';
+import {Folder, type TFolder} from './Folder.js';
 import type {StaticFile} from './get-static-files.js';
 import {useIsPlayer} from './is-player.js';
 import type {LogLevel} from './log.js';
@@ -21,6 +22,8 @@ import {Null} from './Null.js';
 import type {ProResProfile} from './prores-profile.js';
 import type {PixelFormat, VideoImageFormat} from './render-types.js';
 import type {
+	ArrayFieldSchema,
+	ArrayItemFieldSchema,
 	SequenceFieldSchema,
 	SequenceSchema,
 } from './sequence-field-schema.js';
@@ -84,6 +87,8 @@ declare global {
 		remotion_envVariables: string;
 		remotion_isMainTab: boolean;
 		remotion_mediaCacheSizeInBytes: number | null;
+		remotion_sampleRate: number | null;
+		remotion_previewSampleRate: number | null;
 		remotion_initialMemoryAvailable: number | null;
 		remotion_collectAssets: () => TRenderAsset[];
 		remotion_isPlayer: boolean;
@@ -110,6 +115,7 @@ export type BundleCompositionState = {
 	compositionDefaultVideoImageFormat: VideoImageFormat | null;
 	compositionDefaultPixelFormat: PixelFormat | null;
 	compositionDefaultProResProfile: ProResProfile | null;
+	compositionDefaultSampleRate: number | null;
 };
 
 export type BundleIndexState = {
@@ -128,11 +134,43 @@ export type BundleState =
 checkMultipleRemotionVersions();
 export * from './AbsoluteFill.js';
 export * from './animated-image/index.js';
+export type {
+	EffectDefinition,
+	EffectDefinitionAndStack,
+	EffectDescriptor,
+	EffectFactory,
+	EffectsProp,
+} from './effects/index.js';
+/**
+ * @description Renders a solid-color rectangle on a `<canvas>`.
+ * @see [Documentation](https://www.remotion.dev/docs/solid)
+ */
 export type {AnyZodObject} from './any-zod-type.js';
 export {Artifact} from './Artifact.js';
 export {Audio, Html5Audio, RemotionAudioProps} from './audio/index.js';
 export type {LoopVolumeCurveBehavior} from './audio/use-audio-frame.js';
 export {cancelRender} from './cancel-render.js';
+export {Solid} from './effects/Solid.js';
+export type {SolidProps} from './effects/Solid.js';
+export {
+	HTML_IN_CANVAS_UNSUPPORTED_MESSAGE,
+	HtmlInCanvas,
+	isHtmlInCanvasSupported,
+	type HtmlInCanvasOnInit,
+	type HtmlInCanvasOnInitCleanup,
+	type HtmlInCanvasOnPaint,
+	type HtmlInCanvasPixelDensity,
+} from './HtmlInCanvas.js';
+export type {
+	HtmlInCanvasOnPaintParams,
+	HtmlInCanvasProps,
+} from './HtmlInCanvas.js';
+/**
+ * @description Renders a static image to a `<canvas>` and applies Remotion effects.
+ * @see [Documentation](https://www.remotion.dev/docs/canvasimage)
+ */
+export {CanvasImage} from './canvas-image/index.js';
+export type {CanvasImageProps} from './canvas-image/index.js';
 export type {Codec} from './codec.js';
 export {
 	CalculateMetadataFunction,
@@ -148,16 +186,20 @@ export {DownloadBehavior} from './download-behavior.js';
 export * from './easing.js';
 export * from './Folder.js';
 export * from './freeze.js';
-export type {NonceHistory} from './nonce.js';
 export {getRemotionEnvironment} from './get-remotion-environment.js';
 export {getStaticFiles, StaticFile} from './get-static-files.js';
 export * from './IFrame.js';
 export {Img, ImgProps} from './Img.js';
 export * from './internals.js';
-export {interpolateColors} from './interpolate-colors.js';
+export {
+	interpolateColors,
+	type InterpolateColorsOptions,
+} from './interpolate-colors.js';
 export {LogLevel} from './log.js';
 export {Loop} from './loop/index.js';
 export {
+	assertValidInterpolateEasingOption,
+	assertValidInterpolatePosterizeOption,
 	EasingFunction,
 	ExtrapolateType,
 	interpolate,
@@ -165,6 +207,7 @@ export {
 	random,
 	RandomSeed,
 } from './no-react';
+export type {NonceHistory} from './nonce.js';
 export {prefetch, PrefetchOnProgress} from './prefetch.js';
 export {registerRoot} from './register-root.js';
 export type {PixelFormat, VideoImageFormat} from './render-types.js';
@@ -190,6 +233,7 @@ export {
 	useCurrentScale,
 } from './use-current-scale';
 export {useDelayRender} from './use-delay-render';
+export {usePixelDensity} from './use-pixel-density';
 export {useRemotionEnvironment} from './use-remotion-environment.js';
 export * from './use-video-config.js';
 export * from './version.js';
@@ -261,9 +305,11 @@ export const Config = new Proxy(proxyObj, {
 Sequence.displayName = 'Sequence';
 addSequenceStackTraces(Sequence);
 addSequenceStackTraces(Composition);
+addSequenceStackTraces(Folder);
 
 export type _InternalTypes = {
 	AnyComposition: AnyComposition;
+	TFolder: TFolder;
 	BundleCompositionState: BundleCompositionState;
 	BundleState: BundleState;
 	VideoConfigWithSerializedProps: VideoConfigWithSerializedProps;
@@ -275,6 +321,8 @@ export type _InternalTypes = {
 
 export type {
 	AnyComposition,
+	ArrayFieldSchema,
+	ArrayItemFieldSchema,
 	DelayRenderScope,
 	LoopDisplay,
 	SequenceControls,

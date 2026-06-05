@@ -39,7 +39,6 @@ export const startStudio = async ({
 	remotionRoot,
 	keyboardShortcutsEnabled,
 	experimentalClientSideRenderingEnabled,
-	experimentalVisualModeEnabled,
 	relativePublicDir,
 	webpackOverride,
 	poll,
@@ -53,6 +52,7 @@ export const startStudio = async ({
 	binariesDirectory,
 	forceIPv4,
 	audioLatencyHint,
+	previewSampleRate,
 	enableCrossSiteIsolation,
 	askAIEnabled,
 	forceNew,
@@ -71,7 +71,6 @@ export const startStudio = async ({
 	remotionRoot: string;
 	keyboardShortcutsEnabled: boolean;
 	experimentalClientSideRenderingEnabled: boolean;
-	experimentalVisualModeEnabled: boolean;
 	relativePublicDir: string | null;
 	webpackOverride: WebpackOverrideFn;
 	poll: number | null;
@@ -79,6 +78,7 @@ export const startStudio = async ({
 	getRenderQueue: () => RenderJob[];
 	numberOfAudioTags: number;
 	audioLatencyHint: AudioContextLatencyCategory | null;
+	previewSampleRate: number | null;
 	enableCrossSiteIsolation: boolean;
 	queueMethods: QueueMethods;
 	previewEntry: string;
@@ -146,7 +146,6 @@ export const startStudio = async ({
 		remotionRoot,
 		keyboardShortcutsEnabled,
 		experimentalClientSideRenderingEnabled,
-		experimentalVisualModeEnabled,
 		publicDir,
 		webpackOverride,
 		poll,
@@ -164,6 +163,7 @@ export const startStudio = async ({
 		binariesDirectory,
 		forceIPv4,
 		audioLatencyHint,
+		previewSampleRate,
 		enableCrossSiteIsolation,
 		askAIEnabled,
 		forceNew,

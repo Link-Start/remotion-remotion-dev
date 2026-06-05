@@ -1,10 +1,15 @@
+import type React from 'react';
 import type {
+	EffectDefinitionAndStack,
+	EffectsProp,
 	LogLevel,
 	LoopVolumeCurveBehavior,
 	OnVideoFrame,
+	SequenceProps,
 	VolumeProp,
 } from 'remotion';
 import type {MediaOnError} from '../on-error';
+import type {MediaRequestInit} from '../request-init';
 
 export type MediaErrorEvent = {
 	error: Error;
@@ -26,6 +31,7 @@ export type FallbackOffthreadVideoProps = {
 	useWebAudioApi?: boolean;
 	pauseWhenBuffering?: boolean;
 	onAutoPlayError?: null | (() => void);
+	preservePitch?: boolean;
 };
 
 type MandatoryVideoProps = {
@@ -41,7 +47,6 @@ type OptionalVideoProps = {
 	className: string | undefined;
 	volume: VolumeProp;
 	loopVolumeCurveBehavior: LoopVolumeCurveBehavior;
-	name: string | undefined;
 	onVideoFrame: OnVideoFrame | undefined;
 	playbackRate: number;
 	muted: boolean;
@@ -62,26 +67,37 @@ type OptionalVideoProps = {
 	toneFrequency: number;
 	showInTimeline: boolean;
 	debugOverlay: boolean;
-	debugAudioScheduling: boolean;
 	headless: boolean;
 	onError: MediaOnError | undefined;
+	/**
+	 * @deprecated Use `requestInit={{credentials: ...}}` instead. If both are
+	 * passed, `requestInit.credentials` wins over this prop.
+	 */
 	credentials: RequestCredentials | undefined;
+	requestInit: MediaRequestInit | undefined;
 	objectFit: VideoObjectFit;
+	_experimentalInitiallyDrawCachedFrame: boolean;
+	effects: EffectsProp;
 };
+
+export type NativeVideoProps = Omit<
+	React.HTMLAttributes<HTMLElement>,
+	| keyof MandatoryVideoProps
+	| keyof OuterVideoProps
+	| keyof OptionalVideoProps
+	| 'onError'
+> &
+	Record<`data-${string}`, string | undefined>;
 
 export type InnerVideoProps = MandatoryVideoProps &
 	OuterVideoProps &
-	OptionalVideoProps;
+	Omit<OptionalVideoProps, 'effects'> &
+	NativeVideoProps & {
+		effects: EffectDefinitionAndStack<unknown>[];
+	};
 
 export type VideoProps = MandatoryVideoProps &
 	Partial<OuterVideoProps> &
-	Partial<OptionalVideoProps> & {
-		/**
-		 * When set, `<Video>` applies timing via an inner `<Sequence layout="none">` that is hidden from the timeline (`showInTimeline={false}`) so the clip still appears once as media.
-		 */
-		from?: number;
-		/**
-		 * Bounds the clip in frames together with `from`. Defaults to `Infinity` like `<Sequence>`.
-		 */
-		durationInFrames?: number;
-	};
+	Partial<OptionalVideoProps> &
+	NativeVideoProps &
+	Pick<SequenceProps, 'durationInFrames' | 'from' | 'name' | 'hidden'>;

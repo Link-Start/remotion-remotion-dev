@@ -1,8 +1,19 @@
-import type {TSequence} from 'remotion';
+import type {SequencePropsSubscriptionKey, TSequence} from 'remotion';
+
+export type SequenceNodePathInfo = {
+	sequenceSubscriptionKey: SequencePropsSubscriptionKey;
+	auxiliaryKeys: string[];
+	index: number;
+	numberOfSequencesWithThisNodePath: number;
+	supportsEffects: boolean;
+};
 
 type Track = {
 	sequence: TSequence;
 	depth: number;
+	nodePathInfo: SequenceNodePathInfo | null;
+	keyframeDisplayOffset: number;
+	sequenceFrameOffset: number;
 };
 
 export type TrackWithHash = Track & {

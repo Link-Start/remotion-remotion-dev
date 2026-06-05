@@ -1,6 +1,12 @@
 export {splitAnsi, stripAnsi} from './ansi';
 export {
+	AddEffectKeyframeRequest,
+	AddEffectKeyframeResponse,
+	AddEffectRequest,
+	AddEffectResponse,
 	AddRenderRequest,
+	AddSequenceKeyframeRequest,
+	AddSequenceKeyframeResponse,
 	ApiRoutes,
 	ApplyCodemodRequest,
 	ApplyCodemodResponse,
@@ -8,50 +14,102 @@ export {
 	ApplyVisualControlResponse,
 	CanUpdateDefaultPropsResponse,
 	CanUpdateSequencePropsRequest,
-	CanUpdateSequencePropsResponse,
 	CancelRenderRequest,
-	SubscribeToSequencePropsRequest,
-	SubscribeToSequencePropsResponse,
-	UnsubscribeFromSequencePropsRequest,
 	CancelRenderResponse,
+	CompositionComponentInfoRequest,
+	CompositionComponentInfoResponse,
 	CopyStillToClipboardRequest,
+	DeleteEffectKeyframe,
+	DeleteEffectRequest,
+	DeleteEffectRequestItem,
+	DeleteEffectResponse,
 	DeleteJsxNodeRequest,
+	DeleteJsxNodeRequestItem,
 	DeleteJsxNodeResponse,
-	DuplicateJsxNodeRequest,
-	DuplicateJsxNodeResponse,
+	DeleteKeyframesRequest,
+	DeleteKeyframesResponse,
+	DeleteSequenceKeyframe,
 	DeleteStaticFileRequest,
 	DeleteStaticFileResponse,
+	DuplicateJsxNodeRequest,
+	DuplicateJsxNodeResponse,
+	InsertJsxElementRequest,
+	InsertJsxElementResponse,
+	InsertableCompositionElement,
 	InstallPackageRequest,
 	InstallPackageResponse,
+	MoveEffectKeyframe,
+	MoveKeyframesRequest,
+	MoveKeyframesResponse,
+	MoveSequenceKeyframe,
+	OpenInEditorRequest,
+	OpenInEditorResponse,
 	OpenInFileExplorerRequest,
+	PasteEffectsRequest,
+	PasteEffectsResponse,
 	ProjectInfoRequest,
 	ProjectInfoResponse,
 	RedoRequest,
 	RedoResponse,
 	RemoveRenderRequest,
+	ReorderEffectRequest,
+	ReorderEffectResponse,
 	RestartStudioRequest,
 	RestartStudioResponse,
+	SaveEffectPropsRequest,
+	SaveEffectPropsResponse,
+	SaveSequencePropEdit,
 	SaveSequencePropsRequest,
 	SaveSequencePropsResponse,
-	SequenceNodePath,
+	SaveSequencePropsResult,
 	SimpleDiff,
 	SubscribeToDefaultPropsRequest,
 	SubscribeToDefaultPropsResponse,
 	SubscribeToFileExistenceRequest,
 	SubscribeToFileExistenceResponse,
+	SubscribeToSequencePropsRequest,
+	SubscribeToSequencePropsResponse,
 	UndoRequest,
 	UndoResponse,
 	UnsubscribeFromDefaultPropsRequest,
 	UnsubscribeFromFileExistenceRequest,
+	UnsubscribeFromSequencePropsRequest,
+	UpdateEffectKeyframeSettingsRequest,
+	UpdateEffectKeyframeSettingsResponse,
 	UpdateAvailableRequest,
 	UpdateAvailableResponse,
 	UpdateDefaultPropsRequest,
 	UpdateDefaultPropsResponse,
+	UpdateSequenceKeyframeSettingsRequest,
+	UpdateSequenceKeyframeSettingsResponse,
+	type KeyframeSettings,
 } from './api-requests';
 export type {ApplyVisualControlCodemod, RecastCodemod} from './codemods';
 export {DEFAULT_BUFFER_STATE_DELAY_IN_MILLISECONDS} from './default-buffer-state-delay-in-milliseconds';
+export {
+	parseEffectClipboardData,
+	parseEffectClipboardDataResult,
+	type EffectClipboardClamping,
+	type EffectClipboardData,
+	type EffectClipboardDataParseResult,
+	type EffectClipboardEasing,
+	type EffectClipboardExtrapolateType,
+	type EffectClipboardInterpolationFunction,
+	type EffectClipboardKeyframe,
+	type EffectClipboardKeyframedParam,
+	type EffectClipboardParam,
+	type EffectClipboardPasteType,
+	type EffectClipboardSnapshot,
+	type EffectClipboardStaticParam,
+} from './effect-clipboard-data';
+export {
+	EFFECT_DRAG_MIME_TYPE,
+	parseEffectDragData,
+	type EffectDragData,
+} from './effect-drag-data';
 export {EventSourceEvent} from './event-source-event';
 export {formatBytes} from './format-bytes';
+export {getAllSchemaKeys} from './get-all-keys';
 export {getDefaultOutLocation} from './get-default-out-name';
 export {
 	ErrorLocation,
@@ -65,6 +123,15 @@ export {
 	ModuleMap,
 	hotMiddlewareOptions,
 } from './hot-middleware';
+export {
+	getKeyframeInterpolationFunction,
+	getKeyframeInterpolationFunctionForSchemaField,
+	isKeyframeInterpolationFunction,
+	isSchemaFieldKeyframable,
+	isSequenceFieldSchemaKeyframable,
+	keyframeInterpolationFunctions,
+	type KeyframeInterpolationFunction,
+} from './keyframe-interpolation-function';
 export {DEFAULT_TIMELINE_TRACKS} from './max-timeline-tracks';
 export {
 	Pkgs,
@@ -95,7 +162,20 @@ export {
 	UiOpenGlOptions,
 } from './render-job';
 export type {CompletedClientRender} from './render-job';
-export {SOURCE_MAP_ENDPOINT} from './source-map-endpoint';
+export {
+	SCHEMA_FIELD_ROW_HEIGHT,
+	getEffectFieldsToShow,
+	getFieldsToShow,
+} from './schema-field-info';
+export type {
+	AnySchemaFieldInfo,
+	CodeValues,
+	DragOverrides,
+	EffectSchemaFieldInfo,
+	SchemaFieldInfo,
+	SequenceControls,
+	SequenceSchemaFieldInfo,
+} from './schema-field-info';
 export {
 	ScriptLine,
 	SomeStackFrame,
@@ -105,3 +185,29 @@ export {
 export {EnumPath, stringifyDefaultProps} from './stringify-default-props';
 
 export type {VisualControlChange} from './codemods';
+export {
+	optimisticAddEffectKeyframe,
+	optimisticAddSequenceKeyframe,
+} from './optimistic-add-keyframe';
+export {
+	optimisticDeleteEffectKeyframe,
+	optimisticDeleteEffectKeyframes,
+	optimisticDeleteSequenceKeyframe,
+	optimisticDeleteSequenceKeyframes,
+} from './optimistic-delete-keyframe';
+export {
+	canMoveKeyframesWithoutCollisions,
+	optimisticMoveEffectKeyframes,
+	optimisticMoveSequenceKeyframes,
+	type OptimisticKeyframeMove,
+} from './optimistic-move-keyframe';
+export {optimisticUpdateForCodeValues} from './optimistic-update-for-code-values';
+export {optimisticUpdateForEffectCodeValues} from './optimistic-update-for-effect-code-values';
+export {
+	optimisticUpdateEffectKeyframeSettings,
+	optimisticUpdateSequenceKeyframeSettings,
+} from './optimistic-update-keyframe-settings';
+export {
+	stringifySequenceExpandedRowKey,
+	stringifySequenceSubscriptionKey,
+} from './stringify-sequence-subscription-key';

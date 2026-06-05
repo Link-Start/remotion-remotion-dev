@@ -30,6 +30,7 @@ const {
 	offthreadVideoCacheSizeInBytesOption,
 	scaleOption,
 	crfOption,
+	gopSizeOption,
 	jpegQualityOption,
 	videoBitrateOption,
 	enforceAudioOption,
@@ -57,7 +58,6 @@ const {
 	darkModeOption,
 	askAIOption,
 	experimentalClientSideRenderingOption,
-	experimentalVisualModeOption,
 	keyboardShortcutsOption,
 	rspackOption,
 	pixelFormatOption,
@@ -74,6 +74,7 @@ const {
 	overrideDurationOption,
 	bundleCacheOption,
 	runsOption,
+	sampleRateOption,
 } = BrowserSafeApis.options;
 
 const {benchmarkConcurrenciesOption} = BrowserSafeApis.options;
@@ -282,9 +283,6 @@ export const benchmarkCommand = async (
 		experimentalClientSideRenderingOption.getValue({
 			commandLine: parsedCli,
 		}).value;
-	const experimentalVisualModeEnabled = experimentalVisualModeOption.getValue({
-		commandLine: parsedCli,
-	}).value;
 	const askAIEnabled = askAIOption.getValue({commandLine: parsedCli}).value;
 	const keyboardShortcutsEnabled = keyboardShortcutsOption.getValue({
 		commandLine: parsedCli,
@@ -363,7 +361,6 @@ export const benchmarkCommand = async (
 			publicPath,
 			audioLatencyHint: null,
 			experimentalClientSideRenderingEnabled,
-			experimentalVisualModeEnabled,
 			askAIEnabled,
 			keyboardShortcutsEnabled,
 			rspack,
@@ -450,6 +447,7 @@ export const benchmarkCommand = async (
 		commandLine: parsedCli,
 	}).value;
 	const configFileCrf = crfOption.getValue({commandLine: parsedCli}).value;
+	const gopSize = gopSizeOption.getValue({commandLine: parsedCli}).value;
 	const jpegQuality = jpegQualityOption.getValue({
 		commandLine: parsedCli,
 	}).value;
@@ -483,6 +481,7 @@ export const benchmarkCommand = async (
 		true,
 	).value;
 	const metadata = metadataOption.getValue({commandLine: parsedCli}).value;
+	const sampleRate = sampleRateOption.getValue({commandLine: parsedCli}).value;
 
 	for (const composition of compositions) {
 		const {value: videoCodec, source: codecReason} = videoCodecOption.getValue(
@@ -506,6 +505,7 @@ export const benchmarkCommand = async (
 				cancelSignal: null,
 				updatesDontOverwrite: shouldUseNonOverlayingLogger({logLevel}),
 				indent: false,
+				logLevel,
 			});
 			Log.info({indent: false, logLevel});
 			Log.info(
@@ -527,6 +527,7 @@ export const benchmarkCommand = async (
 						durationInFrames: durationInFrames ?? composition.durationInFrames,
 					},
 					crf: configFileCrf ?? null,
+					gopSize,
 					envVariables,
 					frameRange: defaultFrameRange,
 					imageFormat: getVideoImageFormat({
@@ -547,6 +548,7 @@ export const benchmarkCommand = async (
 					everyNthFrame,
 					logLevel,
 					muted,
+					sampleRate,
 					enforceAudioTrack,
 					browserExecutable,
 					ffmpegOverride,

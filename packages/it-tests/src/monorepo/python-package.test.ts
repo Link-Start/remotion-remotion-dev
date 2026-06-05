@@ -106,6 +106,7 @@ test('Python package should create the same renderMedia payload as normal Lambda
 				},
 			},
 			x264Preset: null,
+			gopSize: null,
 			preferLossless: false,
 			indent: false,
 			forcePathStyle: false,
@@ -116,6 +117,7 @@ test('Python package should create the same renderMedia payload as normal Lambda
 			storageClass: null,
 			mediaCacheSizeInBytes: null,
 			isProduction: null,
+			sampleRate: 48000,
 		});
 	const jsonOutput = toParse.substring(0, toParse.lastIndexOf('}') + 1);
 	const parsedJson = JSON.parse(jsonOutput);

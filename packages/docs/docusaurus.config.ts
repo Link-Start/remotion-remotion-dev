@@ -7,6 +7,7 @@ const config: Config = {
 	url: 'https://www.remotion.dev',
 	baseUrl: '/',
 	onBrokenLinks: 'throw',
+	onBrokenAnchors: 'throw',
 	markdown: {
 		hooks: {
 			onBrokenMarkdownLinks: 'warn',
@@ -159,8 +160,8 @@ const config: Config = {
 							href: 'https://github.com/remotion-dev/remotion',
 						},
 						{
-							label: 'Remotion Pro',
-							href: 'https://remotion.pro',
+							label: 'Company License',
+							href: 'https://remotion.pro/license',
 						},
 					],
 				},

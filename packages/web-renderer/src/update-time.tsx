@@ -36,12 +36,12 @@ export const UpdateTime: React.FC<{
 
 	return (
 		<Internals.RemotionRootContexts
-			visualModeEnabled={false}
 			audioEnabled={audioEnabled}
 			videoEnabled={videoEnabled}
 			logLevel={logLevel}
 			numberOfAudioTags={0}
 			audioLatencyHint="interactive"
+			previewSampleRate={null}
 			frameState={{
 				[compId]: frame,
 			}}

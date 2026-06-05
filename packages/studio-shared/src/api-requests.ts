@@ -10,18 +10,56 @@ import type {
 	X264Preset,
 } from '@remotion/renderer';
 import type {HardwareAccelerationOption} from '@remotion/renderer/client';
-import type {_InternalTypes} from 'remotion';
-import type {CanUpdateSequencePropStatus} from 'remotion';
+import type {
+	_InternalTypes,
+	CannotUpdateSequenceReason,
+	CanUpdateEffectPropsResponse,
+	CanUpdateSequencePropsResponseFalse,
+	CanUpdateSequencePropsResponseTrue,
+	CanUpdateSequencePropStatus,
+	ExtrapolateType,
+	SequenceNodePath,
+	SequencePropsSubscriptionKey,
+	SequenceSchema,
+} from 'remotion';
 import type {RecastCodemod, VisualControlChange} from './codemods';
+import type {
+	EffectClipboardPasteType,
+	EffectClipboardSnapshot,
+} from './effect-clipboard-data';
 import type {PackageManager} from './package-manager';
 import type {ProjectInfo} from './project-info';
-import type {RequiredChromiumOptions} from './render-job';
+import type {
+	CompletedClientRender,
+	RequiredChromiumOptions,
+} from './render-job';
+import type {SymbolicatedStackFrame} from './stack-types';
 import type {EnumPath} from './stringify-default-props';
-
-export type SequenceNodePath = Array<string | number>;
 
 export type OpenInFileExplorerRequest = {
 	directory: string;
+};
+
+export type OpenInEditorRequest = {
+	stack: SymbolicatedStackFrame;
+};
+
+export type OpenInEditorResponse = {
+	success: boolean;
+};
+
+export type CompositionComponentInfoRequest = {
+	compositionFile: string;
+	compositionId: string;
+};
+
+export type CompositionComponentInfoResponse = {
+	location: {
+		source: string;
+		line: number;
+		column: number;
+	};
+	canAddSequence: boolean;
 };
 
 export type CopyStillToClipboardRequest = {
@@ -67,6 +105,7 @@ type AddRenderRequestDynamicFields =
 			logLevel: LogLevel;
 			concurrency: number;
 			crf: number | null;
+			gopSize: number | null;
 			startFrame: number;
 			endFrame: number;
 			muted: boolean;
@@ -87,6 +126,7 @@ type AddRenderRequestDynamicFields =
 			separateAudioTo: string | null;
 			hardwareAcceleration: HardwareAccelerationOption;
 			chromeMode: ChromeMode;
+			sampleRate: number;
 	  };
 
 export type CancelRenderRequest = {
@@ -155,6 +195,7 @@ export type UpdateDefaultPropsResponse =
 export type ApplyCodemodRequest = {
 	codemod: RecastCodemod;
 	dryRun: boolean;
+	symbolicatedStack: SymbolicatedStackFrame | null;
 };
 
 export type SimpleDiff = {
@@ -205,7 +246,7 @@ export type UnsubscribeFromDefaultPropsRequest = {
 
 export type CanUpdateSequencePropsRequest = {
 	fileName: string;
-	nodePath: SequenceNodePath;
+	nodePath: SequencePropsSubscriptionKey;
 	keys: string[];
 };
 
@@ -213,44 +254,89 @@ export type SubscribeToSequencePropsRequest = {
 	fileName: string;
 	line: number;
 	column: number;
+	nodePath: SequenceNodePath | null;
 	keys: string[];
+	effects: string[][];
 	clientId: string;
 };
 
-export type SubscribeToSequencePropsResponse = CanUpdateSequencePropsResponse;
+export type SubscribeToSequencePropsResponse =
+	| {
+			success: true;
+			status: CanUpdateSequencePropsResponseTrue;
+			nodePath: SequencePropsSubscriptionKey;
+	  }
+	| {
+			success: false;
+			status: CanUpdateSequencePropsResponseFalse;
+	  };
 
 export type UnsubscribeFromSequencePropsRequest = {
 	fileName: string;
-	nodePath: SequenceNodePath;
+	nodePath: SequencePropsSubscriptionKey;
 	clientId: string;
+	sequenceKeys: string[];
+	effectKeys: string[][];
 };
 
-export type CanUpdateSequencePropsResponse =
-	| {
-			canUpdate: true;
-			props: Record<string, CanUpdateSequencePropStatus>;
-			nodePath: SequenceNodePath;
-			/** True when the JSX is inside a `.map()` callback (list iteration). */
-			jsxInMapCallback: boolean;
-	  }
-	| {
-			canUpdate: false;
-			reason: string;
-	  };
-
-export type SaveSequencePropsRequest = {
+export type SaveSequencePropEdit = {
 	fileName: string;
-	nodePath: SequenceNodePath;
+	nodePath: SequencePropsSubscriptionKey;
 	key: string;
 	value: string;
 	defaultValue: string | null;
-	observedKeys: string[];
+	schema: SequenceSchema;
+};
+
+export type SaveSequencePropsRequest = {
+	edits: SaveSequencePropEdit[];
+	clientId: string;
+	undoLabel: string;
+	redoLabel: string;
+};
+
+export type SaveSequencePropsResult = {
+	fileName: string;
+	nodePath: SequencePropsSubscriptionKey;
+	props: Record<string, CanUpdateSequencePropStatus>;
 };
 
 export type SaveSequencePropsResponse =
 	| {
+			canUpdate: true;
+			props: Record<string, CanUpdateSequencePropStatus>;
+			results: SaveSequencePropsResult[];
+	  }
+	| {
+			canUpdate: false;
+			reason: CannotUpdateSequenceReason;
+	  };
+
+export type SaveEffectPropsRequest = {
+	fileName: string;
+	sequenceNodePath: SequencePropsSubscriptionKey;
+	effectIndex: number;
+	key: string;
+	value: string;
+	defaultValue: string | null;
+	schema: SequenceSchema;
+	clientId: string;
+};
+
+export type SaveEffectPropsResponse = CanUpdateEffectPropsResponse;
+
+export type AddEffectRequest = {
+	fileName: string;
+	sequenceNodePath: SequencePropsSubscriptionKey;
+	effectName: string;
+	effectImportPath: string;
+	effectConfig: Record<string, unknown>;
+	clientId: string;
+};
+
+export type AddEffectResponse =
+	| {
 			success: true;
-			newStatus: CanUpdateSequencePropsResponse;
 	  }
 	| {
 			success: false;
@@ -258,9 +344,189 @@ export type SaveSequencePropsResponse =
 			stack: string;
 	  };
 
-export type DeleteJsxNodeRequest = {
+export type ReorderEffectRequest = {
+	fileName: string;
+	sequenceNodePath: SequencePropsSubscriptionKey;
+	fromIndex: number;
+	toIndex: number;
+	clientId: string;
+};
+
+export type ReorderEffectResponse =
+	| {
+			success: true;
+	  }
+	| {
+			success: false;
+			reason: string;
+			stack: string;
+	  };
+
+export type DeleteSequenceKeyframe = {
+	fileName: string;
+	nodePath: SequencePropsSubscriptionKey;
+	key: string;
+	frame: number;
+	schema: SequenceSchema;
+};
+
+export type MoveSequenceKeyframe = {
+	fileName: string;
+	nodePath: SequencePropsSubscriptionKey;
+	key: string;
+	fromFrame: number;
+	toFrame: number;
+	schema: SequenceSchema;
+};
+
+export type AddSequenceKeyframeRequest = {
+	fileName: string;
+	nodePath: SequencePropsSubscriptionKey;
+	key: string;
+	frame: number;
+	value: string;
+	schema: SequenceSchema;
+	clientId: string;
+};
+
+export type AddSequenceKeyframeResponse = SaveSequencePropsResponse;
+
+export type DeleteEffectKeyframe = {
+	fileName: string;
+	sequenceNodePath: SequencePropsSubscriptionKey;
+	effectIndex: number;
+	key: string;
+	frame: number;
+	schema: SequenceSchema;
+};
+
+export type MoveEffectKeyframe = {
+	fileName: string;
+	sequenceNodePath: SequencePropsSubscriptionKey;
+	effectIndex: number;
+	key: string;
+	fromFrame: number;
+	toFrame: number;
+	schema: SequenceSchema;
+};
+
+export type DeleteKeyframesRequest = {
+	sequenceKeyframes: DeleteSequenceKeyframe[];
+	effectKeyframes: DeleteEffectKeyframe[];
+	clientId: string;
+};
+
+export type DeleteKeyframesResponse = {
+	success: true;
+};
+
+export type MoveKeyframesRequest = {
+	sequenceKeyframes: MoveSequenceKeyframe[];
+	effectKeyframes: MoveEffectKeyframe[];
+	clientId: string;
+};
+
+export type MoveKeyframesResponse = {
+	success: true;
+};
+
+export type AddEffectKeyframeRequest = {
+	fileName: string;
+	sequenceNodePath: SequencePropsSubscriptionKey;
+	effectIndex: number;
+	key: string;
+	frame: number;
+	value: string;
+	schema: SequenceSchema;
+	clientId: string;
+};
+
+export type AddEffectKeyframeResponse = SaveEffectPropsResponse;
+
+export type KeyframeSettings = {
+	clamping:
+		| {
+				left: ExtrapolateType;
+				right: ExtrapolateType;
+		  }
+		| undefined;
+	posterize: number | undefined;
+};
+
+export type UpdateSequenceKeyframeSettingsRequest = {
+	fileName: string;
+	nodePath: SequencePropsSubscriptionKey;
+	key: string;
+	settings: KeyframeSettings;
+	schema: SequenceSchema;
+	clientId: string;
+};
+
+export type UpdateSequenceKeyframeSettingsResponse = SaveSequencePropsResponse;
+
+export type UpdateEffectKeyframeSettingsRequest = {
+	fileName: string;
+	sequenceNodePath: SequencePropsSubscriptionKey;
+	effectIndex: number;
+	key: string;
+	settings: KeyframeSettings;
+	schema: SequenceSchema;
+	clientId: string;
+};
+
+export type UpdateEffectKeyframeSettingsResponse = SaveEffectPropsResponse;
+
+type BaseDeleteEffectRequestItem = {
+	fileName: string;
+	sequenceNodePath: SequencePropsSubscriptionKey;
+};
+
+export type DeleteEffectRequestItem =
+	| (BaseDeleteEffectRequestItem & {
+			type: 'single-effect';
+			effectIndex: number;
+	  })
+	| (BaseDeleteEffectRequestItem & {
+			type: 'all-effects';
+	  });
+
+export type DeleteEffectRequest = DeleteEffectRequestItem[];
+
+export type DeleteEffectResponse =
+	| {
+			success: true;
+	  }
+	| {
+			success: false;
+			reason: string;
+			stack: string;
+	  };
+
+export type PasteEffectsRequest = {
+	targetFileName: string;
+	targetSequenceNodePath: SequencePropsSubscriptionKey;
+	type: EffectClipboardPasteType;
+	effects: EffectClipboardSnapshot[];
+	clientId: string;
+};
+
+export type PasteEffectsResponse =
+	| {
+			success: true;
+	  }
+	| {
+			success: false;
+			reason: string;
+			stack: string;
+	  };
+
+export type DeleteJsxNodeRequestItem = {
 	fileName: string;
 	nodePath: SequenceNodePath;
+};
+
+export type DeleteJsxNodeRequest = {
+	nodes: DeleteJsxNodeRequestItem[];
 };
 
 export type DeleteJsxNodeResponse =
@@ -279,6 +545,38 @@ export type DuplicateJsxNodeRequest = {
 };
 
 export type DuplicateJsxNodeResponse =
+	| {
+			success: true;
+	  }
+	| {
+			success: false;
+			reason: string;
+			stack: string;
+	  };
+
+export type InsertableCompositionElement =
+	| {
+			type: 'solid';
+			width: number;
+			height: number;
+	  }
+	| {
+			type: 'asset';
+			assetType: 'image' | 'video' | 'gif' | 'audio';
+			src: string;
+			dimensions: {
+				width: number;
+				height: number;
+			} | null;
+	  };
+
+export type InsertJsxElementRequest = {
+	compositionFile: string;
+	compositionId: string;
+	element: InsertableCompositionElement;
+};
+
+export type InsertJsxElementResponse =
 	| {
 			success: true;
 	  }
@@ -331,6 +629,10 @@ export type RedoResponse =
 	  };
 
 export type ApiRoutes = {
+	'/api/composition-component-info': ReqAndRes<
+		CompositionComponentInfoRequest,
+		CompositionComponentInfoResponse
+	>;
 	'/api/cancel': ReqAndRes<CancelRenderRequest, CancelRenderResponse>;
 	'/api/render': ReqAndRes<AddRenderRequest, undefined>;
 	'/api/unsubscribe-from-file-existence': ReqAndRes<
@@ -342,7 +644,10 @@ export type ApiRoutes = {
 		SubscribeToFileExistenceResponse
 	>;
 	'/api/remove-render': ReqAndRes<RemoveRenderRequest, undefined>;
+	'/api/open-in-editor': ReqAndRes<OpenInEditorRequest, OpenInEditorResponse>;
 	'/api/open-in-file-explorer': ReqAndRes<OpenInFileExplorerRequest, void>;
+	'/api/register-client-render': ReqAndRes<CompletedClientRender, void>;
+	'/api/unregister-client-render': ReqAndRes<{id: string}, void>;
 	'/api/update-default-props': ReqAndRes<
 		UpdateDefaultPropsRequest,
 		UpdateDefaultPropsResponse
@@ -371,6 +676,35 @@ export type ApiRoutes = {
 		SaveSequencePropsRequest,
 		SaveSequencePropsResponse
 	>;
+	'/api/save-effect-props': ReqAndRes<
+		SaveEffectPropsRequest,
+		SaveEffectPropsResponse
+	>;
+	'/api/add-effect': ReqAndRes<AddEffectRequest, AddEffectResponse>;
+	'/api/reorder-effect': ReqAndRes<ReorderEffectRequest, ReorderEffectResponse>;
+	'/api/delete-keyframes': ReqAndRes<
+		DeleteKeyframesRequest,
+		DeleteKeyframesResponse
+	>;
+	'/api/move-keyframes': ReqAndRes<MoveKeyframesRequest, MoveKeyframesResponse>;
+	'/api/add-sequence-keyframe': ReqAndRes<
+		AddSequenceKeyframeRequest,
+		AddSequenceKeyframeResponse
+	>;
+	'/api/add-effect-keyframe': ReqAndRes<
+		AddEffectKeyframeRequest,
+		AddEffectKeyframeResponse
+	>;
+	'/api/update-sequence-keyframe-settings': ReqAndRes<
+		UpdateSequenceKeyframeSettingsRequest,
+		UpdateSequenceKeyframeSettingsResponse
+	>;
+	'/api/update-effect-keyframe-settings': ReqAndRes<
+		UpdateEffectKeyframeSettingsRequest,
+		UpdateEffectKeyframeSettingsResponse
+	>;
+	'/api/delete-effect': ReqAndRes<DeleteEffectRequest, DeleteEffectResponse>;
+	'/api/paste-effects': ReqAndRes<PasteEffectsRequest, PasteEffectsResponse>;
 	'/api/delete-jsx-node': ReqAndRes<
 		DeleteJsxNodeRequest,
 		DeleteJsxNodeResponse
@@ -378,6 +712,10 @@ export type ApiRoutes = {
 	'/api/duplicate-jsx-node': ReqAndRes<
 		DuplicateJsxNodeRequest,
 		DuplicateJsxNodeResponse
+	>;
+	'/api/insert-jsx-element': ReqAndRes<
+		InsertJsxElementRequest,
+		InsertJsxElementResponse
 	>;
 	'/api/update-available': ReqAndRes<
 		UpdateAvailableRequest,

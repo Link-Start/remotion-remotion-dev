@@ -74,6 +74,10 @@ Must be one of these values:
 - `'contain'`: The GIF is scaled to fit the box, while aspect ratio is maintained.
 - `'cover'`: The GIF completely fills the container and maintains it's aspect ratio. It will be cropped if necessary.
 
+### `effects?`<AvailableFrom v="4.0.464" />
+
+Apply [effects](/docs/effects/api) to each GIF frame after it has been drawn to the canvas.
+
 ### `onLoad`
 
 Callback that gets called once the GIF has loaded and finished processing. As its only argument, the callback gives the following object:
@@ -120,6 +124,21 @@ See: [Modifying the timeout](/docs/delay-render#modifying-the-timeout)
 <Gif
   src="https://example.com/large-gif.gif"
   delayRenderTimeoutInMilliseconds={60000} // 60 seconds
+/>
+```
+
+### `requestInit?`<AvailableFrom v="4.0.471" />
+
+Options that are passed to the internal [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/fetch) call when loading the GIF. This can be used to pass credentials or headers for authenticated GIFs.
+
+Remotion manages the internal `signal` option itself, so passing a `signal` in `requestInit` has no effect.
+
+```tsx
+<Gif
+  src="https://example.com/authenticated-gif.gif"
+  requestInit={{
+    credentials: 'include',
+  }}
 />
 ```
 

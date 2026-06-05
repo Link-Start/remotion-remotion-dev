@@ -139,11 +139,9 @@ export const OffthreadVideo: React.FC<RemotionOffthreadVideoProps> = ({
 	acceptableTimeShiftInSeconds,
 	allowAmplificationDuringRender,
 	audioStreamIndex,
-	className,
 	crossOrigin,
 	delayRenderRetries,
 	delayRenderTimeoutInMilliseconds,
-	id,
 	loopVolumeCurveBehavior,
 	muted,
 	name,
@@ -152,6 +150,7 @@ export const OffthreadVideo: React.FC<RemotionOffthreadVideoProps> = ({
 	onVideoFrame,
 	pauseWhenBuffering,
 	playbackRate,
+	preservePitch,
 	showInTimeline,
 	style,
 	toneFrequency,
@@ -166,6 +165,7 @@ export const OffthreadVideo: React.FC<RemotionOffthreadVideoProps> = ({
 	stack,
 	startFrom,
 	imageFormat,
+	...props
 }) => {
 	if (imageFormat) {
 		throw new TypeError(
@@ -178,11 +178,9 @@ export const OffthreadVideo: React.FC<RemotionOffthreadVideoProps> = ({
 			acceptableTimeShiftInSeconds={acceptableTimeShiftInSeconds}
 			allowAmplificationDuringRender={allowAmplificationDuringRender ?? true}
 			audioStreamIndex={audioStreamIndex ?? 0}
-			className={className}
 			crossOrigin={crossOrigin}
 			delayRenderRetries={delayRenderRetries}
 			delayRenderTimeoutInMilliseconds={delayRenderTimeoutInMilliseconds}
-			id={id}
 			loopVolumeCurveBehavior={loopVolumeCurveBehavior ?? 'repeat'}
 			muted={muted ?? false}
 			name={name}
@@ -191,6 +189,7 @@ export const OffthreadVideo: React.FC<RemotionOffthreadVideoProps> = ({
 			onVideoFrame={onVideoFrame}
 			pauseWhenBuffering={pauseWhenBuffering ?? true}
 			playbackRate={playbackRate ?? 1}
+			preservePitch={preservePitch}
 			toneFrequency={toneFrequency ?? 1}
 			showInTimeline={showInTimeline ?? true}
 			src={src}
@@ -207,6 +206,7 @@ export const OffthreadVideo: React.FC<RemotionOffthreadVideoProps> = ({
 			trimBefore={trimBefore}
 			useWebAudioApi={useWebAudioApi ?? false}
 			volume={volume}
+			{...props}
 		/>
 	);
 };

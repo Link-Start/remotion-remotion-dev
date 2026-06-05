@@ -8,14 +8,21 @@ import {subscribeToSequencePropsWatchers} from '../sequence-props-watchers';
 export const subscribeToSequenceProps: ApiHandler<
 	SubscribeToSequencePropsRequest,
 	SubscribeToSequencePropsResponse
-> = ({input: {fileName, line, column, keys, clientId}, remotionRoot}) => {
+> = ({
+	input: {fileName, line, column, nodePath, keys, effects, clientId},
+	remotionRoot,
+	logLevel,
+}) => {
 	const result = subscribeToSequencePropsWatchers({
 		fileName,
 		line,
 		column,
+		nodePath,
 		keys,
+		effects,
 		remotionRoot,
 		clientId,
+		logLevel,
 	});
 
 	return Promise.resolve(result);

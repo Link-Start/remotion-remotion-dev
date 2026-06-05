@@ -48,7 +48,6 @@ export const startServer = async (options: {
 	remotionRoot: string;
 	keyboardShortcutsEnabled: boolean;
 	experimentalClientSideRenderingEnabled: boolean;
-	experimentalVisualModeEnabled: boolean;
 	publicDir: string;
 	poll: number | null;
 	staticHash: string;
@@ -64,6 +63,7 @@ export const startServer = async (options: {
 	binariesDirectory: string | null;
 	forceIPv4: boolean;
 	audioLatencyHint: AudioContextLatencyCategory | null;
+	previewSampleRate: number | null;
 	enableCrossSiteIsolation: boolean;
 	askAIEnabled: boolean;
 	forceNew: boolean;
@@ -105,7 +105,6 @@ export const startServer = async (options: {
 		keyboardShortcutsEnabled: options.keyboardShortcutsEnabled,
 		experimentalClientSideRenderingEnabled:
 			options.experimentalClientSideRenderingEnabled,
-		experimentalVisualModeEnabled: options.experimentalVisualModeEnabled,
 		poll: options.poll,
 		bufferStateDelayInMilliseconds: options.bufferStateDelayInMilliseconds,
 		askAIEnabled: options.askAIEnabled,
@@ -174,6 +173,7 @@ export const startServer = async (options: {
 					gitSource: options.gitSource,
 					binariesDirectory: options.binariesDirectory,
 					audioLatencyHint: options.audioLatencyHint,
+					previewSampleRate: options.previewSampleRate,
 					enableCrossSiteIsolation: options.enableCrossSiteIsolation,
 				});
 			})

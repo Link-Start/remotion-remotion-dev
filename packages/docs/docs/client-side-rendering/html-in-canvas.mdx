@@ -12,7 +12,15 @@ Experimental feature - expect bugs and breaking changes at any time.
 
 # HTML-in-canvas<AvailableFrom v="4.0.447" />
 
-On supported Chromium-based browsers, [`@remotion/web-renderer`](/docs/web-renderer) can optionally capture full frames using the experimental [HTML-in-canvas](https://github.com/WICG/html-in-canvas) APIs.
+:::note
+This is not the same as the [`<HtmlInCanvas>`](/docs/html-in-canvas) component for designing visuals. This page describes a [`@remotion/web-renderer`](/docs/web-renderer) option that uses HTML-in-canvas to capture full frames during client-side rendering.
+:::
+
+On supported Chromium-based browsers, [`@remotion/web-renderer`](/docs/web-renderer) can optionally capture full frames using the experimental [HTML-in-canvas](/docs/html-in-canvas) APIs.
+
+:::info
+Use a recent version of Google Chrome or another Chromium-based browser with `chrome://flags/#canvas-draw-element` enabled. Current Chrome stable releases ship `canvas.requestPaint()` together with [`drawElementImage`](https://github.com/WICG/html-in-canvas#2-drawelementimage-and-webglwebgpu-equivalents), which is required for correct frame capture. See [Compatibility](#compatibility) for details.
+:::
 
 Enabling the option does not guarantee that this path runs. If the browser does not have HTML-in-canvas enabled, it falls back to the [default frame capturing mechanism](/docs/client-side-rendering/how-it-works).
 
@@ -31,7 +39,6 @@ declare const composition: Parameters<typeof renderStillOnWeb>[0]['composition']
 await renderStillOnWeb({
   composition,
   frame: 0,
-  imageFormat: 'png',
   inputProps: {},
   allowHtmlInCanvas: true,
 });
@@ -75,7 +82,7 @@ If HTML-in-canvas is available, and allowed, but not used, a warning will be pri
 Not using HTML-in-canvas: drawElementImage is available but canvas.requestPaint() is missing. Use a Chromium version that ships requestPaint.
 ```
 
-This can happen for example if enabling the feature in Chrome rather than Chrome Canary (as of time of writing in April 2026).
+This can happen for example when using an older Chromium build that does not ship `canvas.requestPaint()`.
 
 If HTML-in-canvas is not available, or not allowed, no warning will be printed.
 
@@ -95,10 +102,13 @@ If HTML-in-canvas is not available, or not allowed, no warning will be printed.
   hideServers
 />
 
-HTML-in-canvas depends on Chromium flag `chrome://flags/#canvas-draw-element` which needs to be explicitly enabled as of time of writing in April 2026.
+HTML-in-canvas depends on Chromium flag `chrome://flags/#canvas-draw-element`, which must be enabled explicitly.
+
+Use a recent Chrome or Chromium version with the flag enabled for full support. Very old Chromium builds may expose [`drawElementImage`](https://github.com/WICG/html-in-canvas#2-drawelementimage-and-webglwebgpu-equivalents) but omit `canvas.requestPaint()`. Without `requestPaint()`, the renderer cannot synchronize paint operations, which can lead to repeated or incorrect frames.
 
 ## See also
 
+- [`<HtmlInCanvas>`](/docs/remotion/html-in-canvas)
 - [How client-side rendering works](/docs/client-side-rendering/how-it-works)
 - [`renderMediaOnWeb()`](/docs/web-renderer/render-media-on-web)
 - [`renderStillOnWeb()`](/docs/web-renderer/render-still-on-web)

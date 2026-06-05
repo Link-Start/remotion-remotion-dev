@@ -1,6 +1,9 @@
 import {expect, test} from 'bun:test';
 import type {VideoConfig} from 'remotion';
-import {getTimelineSequenceLayout} from '../helpers/get-timeline-sequence-layout';
+import {
+	SEQUENCE_BORDER_WIDTH,
+	getTimelineSequenceLayout,
+} from '../helpers/get-timeline-sequence-layout';
 
 const makeVideoConfig = (durationInFrames: number): VideoConfig => ({
 	durationInFrames,
@@ -41,11 +44,11 @@ test('Should test timeline sequence layout without max media duration', () => {
 			windowWidth: 1414.203125,
 		}),
 	).toEqual({
-		marginLeft: 1154.4991419797689,
+		marginLeft: 1154.0226668902187,
 		premountWidth: null,
 		postmountWidth: null,
-		width: 226.70398302023122,
-		naturalWidth: 226.70398302023122,
+		width: 227.18045810978126,
+		naturalWidth: 227.18045810978126,
 	});
 });
 test('Should test timeline sequence layout with max media duration', () => {
@@ -75,11 +78,11 @@ test('Should test timeline sequence layout with max media duration', () => {
 			windowWidth: 1414.203125,
 		}),
 	).toEqual({
-		marginLeft: 1154.4991419797689,
+		marginLeft: 1154.0226668902187,
 		premountWidth: null,
 		postmountWidth: null,
-		width: 221.5678029521057,
-		naturalWidth: 221.5678029521057,
+		width: 221.47594665703676,
+		naturalWidth: 221.47594665703676,
 	});
 });
 
@@ -115,6 +118,81 @@ test('naturalWidth === width when segment fits within timeline', () => {
 	});
 
 	expect(result.naturalWidth).toBe(result.width);
+});
+
+test('one-frame segments have a one-frame width', () => {
+	const result = getTimelineSequenceLayout({
+		durationInFrames: 1,
+		startFrom: 0,
+		startFromMedia: 0,
+		maxMediaDuration: null,
+		premountDisplay: null,
+		postmountDisplay: null,
+		video: makeVideoConfig(300),
+		windowWidth: 1000,
+	});
+
+	expect(result.width).toBe(2.226666666666667);
+	expect(result.naturalWidth).toBe(2.226666666666667);
+});
+
+test('adjacent sequences have no visual gap', () => {
+	const first = getTimelineSequenceLayout({
+		durationInFrames: 23.5,
+		startFrom: 0,
+		startFromMedia: 0,
+		maxMediaDuration: null,
+		premountDisplay: null,
+		postmountDisplay: null,
+		video: makeVideoConfig(120),
+		windowWidth: 1000,
+	});
+	const second = getTimelineSequenceLayout({
+		durationInFrames: 20,
+		startFrom: 23.5,
+		startFromMedia: 0,
+		maxMediaDuration: null,
+		premountDisplay: null,
+		postmountDisplay: null,
+		video: makeVideoConfig(120),
+		windowWidth: 1000,
+	});
+
+	expect(first.marginLeft + first.width + SEQUENCE_BORDER_WIDTH).toBe(
+		second.marginLeft,
+	);
+});
+
+test('media trimmed past its duration has zero width', () => {
+	const result = getTimelineSequenceLayout({
+		durationInFrames: 300,
+		startFrom: 0,
+		startFromMedia: 500,
+		maxMediaDuration: 300,
+		premountDisplay: null,
+		postmountDisplay: null,
+		video: makeVideoConfig(300),
+		windowWidth: 1000,
+	});
+
+	expect(result.width).toBe(0);
+	expect(result.naturalWidth).toBe(0);
+});
+
+test('media trimmed past its duration and timeline end has zero width', () => {
+	const result = getTimelineSequenceLayout({
+		durationInFrames: 200,
+		startFrom: 200,
+		startFromMedia: 500,
+		maxMediaDuration: 300,
+		premountDisplay: null,
+		postmountDisplay: null,
+		video: makeVideoConfig(300),
+		windowWidth: 1000,
+	});
+
+	expect(result.width).toBe(0);
+	expect(result.naturalWidth).toBe(0);
 });
 
 test('Loop overshoot: naturalWidth > width when total loop duration exceeds comp', () => {

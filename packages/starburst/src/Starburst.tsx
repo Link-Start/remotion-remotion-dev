@@ -1,5 +1,4 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
-import {type SequenceControls, type SequenceSchema} from 'remotion';
 import {
 	AbsoluteFill,
 	Internals,
@@ -8,8 +7,11 @@ import {
 	useVideoConfig,
 	type AbsoluteFillLayout,
 	type LayoutAndStyle,
+	type SequenceControls,
 	type SequenceProps,
+	type SequenceSchema,
 } from 'remotion';
+import {colorToRgb} from './color-to-rgb';
 
 export type StarburstProps = Omit<
 	SequenceProps,
@@ -25,19 +27,6 @@ export type StarburstProps = Omit<
 		readonly originOffsetX?: number;
 		readonly originOffsetY?: number;
 	};
-
-const hexToRgb = (hex: string): [number, number, number] => {
-	const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-	if (!result) {
-		throw new Error(`Invalid hex color: ${hex}`);
-	}
-
-	return [
-		parseInt(result[1], 16) / 255,
-		parseInt(result[2], 16) / 255,
-		parseInt(result[3], 16) / 255,
-	];
-};
 
 const VERTEX_SHADER = `
 attribute vec2 position;
@@ -230,10 +219,10 @@ const StarburstCanvas: React.FC<{
 
 		const pixelData = new Uint8Array(colors.length * 4);
 		for (let i = 0; i < colors.length; i++) {
-			const rgb = hexToRgb(colors[i]);
-			pixelData[i * 4] = Math.round(rgb[0] * 255);
-			pixelData[i * 4 + 1] = Math.round(rgb[1] * 255);
-			pixelData[i * 4 + 2] = Math.round(rgb[2] * 255);
+			const rgb = colorToRgb(colors[i]);
+			pixelData[i * 4] = rgb[0];
+			pixelData[i * 4 + 1] = rgb[1];
+			pixelData[i * 4 + 2] = rgb[2];
 			pixelData[i * 4 + 3] = 255;
 		}
 
@@ -285,7 +274,9 @@ const StarburstCanvas: React.FC<{
  * @description Renders a static WebGL-based starburst ray pattern as a Sequence.
  * @see [Documentation](https://www.remotion.dev/docs/starburst/starburst)
  */
-const starburstSchema = {
+export const starburstSchema = {
+	durationInFrames: Internals.durationInFramesField,
+	from: Internals.fromField,
 	rays: {
 		type: 'number',
 		min: 2,
@@ -293,6 +284,18 @@ const starburstSchema = {
 		step: 1,
 		default: 12,
 		description: 'Number of Rays',
+		hiddenFromList: false,
+	},
+	colors: {
+		type: 'array',
+		item: {
+			type: 'color',
+		},
+		default: undefined,
+		minLength: 2,
+		newItemDefault: '#ff0000',
+		description: 'Colors',
+		keyframable: false,
 	},
 	rotation: {
 		type: 'number',
@@ -301,6 +304,7 @@ const starburstSchema = {
 		step: 1,
 		default: 0,
 		description: 'Rotation',
+		hiddenFromList: false,
 	},
 	smoothness: {
 		type: 'number',
@@ -309,6 +313,7 @@ const starburstSchema = {
 		step: 0.01,
 		default: 0,
 		description: 'Edge Smoothness',
+		hiddenFromList: false,
 	},
 	vignette: {
 		type: 'number',
@@ -317,6 +322,7 @@ const starburstSchema = {
 		step: 0.01,
 		default: 1,
 		description: 'Vignette',
+		hiddenFromList: false,
 	},
 	originOffsetX: {
 		type: 'number',
@@ -325,6 +331,7 @@ const starburstSchema = {
 		step: 0.01,
 		default: 0,
 		description: 'Origin Offset X',
+		hiddenFromList: false,
 	},
 	originOffsetY: {
 		type: 'number',
@@ -333,40 +340,15 @@ const starburstSchema = {
 		step: 0.01,
 		default: 0,
 		description: 'Origin Offset Y',
+		hiddenFromList: false,
 	},
-	'style.translate': {
-		type: 'translate',
-		step: 1,
-		default: '0px 0px',
-		description: 'Position',
-	},
-	'style.scale': {
-		type: 'number',
-		min: 0.05,
-		max: 100,
-		step: 0.01,
-		default: 1,
-		description: 'Scale',
-	},
-	'style.rotate': {
-		type: 'rotation',
-		step: 1,
-		default: '0deg',
-		description: 'Rotation',
-	},
-	'style.opacity': {
-		type: 'number',
-		min: 0,
-		max: 1,
-		step: 0.01,
-		default: 1,
-		description: 'Opacity',
-	},
+	...Internals.sequenceStyleSchema,
+	hidden: Internals.hiddenField,
 } as const satisfies SequenceSchema;
 
 const StarburstInner: React.FC<
 	StarburstProps & {
-		readonly controls: SequenceControls | undefined;
+		readonly _experimentalControls: SequenceControls | undefined;
 	}
 > = ({
 	rays,
@@ -378,7 +360,7 @@ const StarburstInner: React.FC<
 	originOffsetY = 0,
 	durationInFrames,
 	style,
-	controls,
+	_experimentalControls: controls,
 	...sequenceProps
 }) => {
 	const {durationInFrames: videoDuration} = useVideoConfig();
@@ -434,7 +416,8 @@ const StarburstInner: React.FC<
 		<Sequence
 			durationInFrames={resolvedDuration}
 			name="<Starburst>"
-			controls={controls}
+			_remotionInternalDocumentationLink="https://www.remotion.dev/docs/starburst/starburst"
+			_experimentalControls={controls}
 			{...sequenceProps}
 			style={style}
 		>
@@ -451,10 +434,11 @@ const StarburstInner: React.FC<
 	);
 };
 
-export const Starburst = Internals.wrapInSchema(
-	StarburstInner,
-	starburstSchema,
-);
+export const Starburst = Internals.wrapInSchema({
+	Component: StarburstInner,
+	schema: starburstSchema,
+	supportsEffects: false,
+});
 
 Starburst.displayName = 'Starburst';
 

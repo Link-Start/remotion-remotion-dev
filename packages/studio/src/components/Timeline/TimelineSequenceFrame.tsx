@@ -6,6 +6,8 @@ const relativeFrameStyle: React.CSSProperties = {
 	color: 'white',
 	opacity: 0.5,
 	whiteSpace: 'nowrap',
+	pointerEvents: 'none',
+	userSelect: 'none',
 };
 
 export const TimelineSequenceFrame: React.FC<{

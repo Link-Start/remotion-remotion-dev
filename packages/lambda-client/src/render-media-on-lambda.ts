@@ -170,6 +170,7 @@ export const renderMediaOnLambdaOptionalToRequired = (
 		concurrencyPerLambda: options.concurrencyPerLambda ?? 1,
 		concurrency: options.concurrency ?? null,
 		crf: options.crf,
+		gopSize: options.gopSize ?? null,
 		downloadBehavior: options.downloadBehavior ?? {type: 'play-in-browser'},
 		envVariables: options.envVariables ?? {},
 		everyNthFrame: options.everyNthFrame ?? 1,
@@ -215,6 +216,7 @@ export const renderMediaOnLambdaOptionalToRequired = (
 		requestHandler: options.requestHandler ?? null,
 		mediaCacheSizeInBytes: options.mediaCacheSizeInBytes ?? null,
 		isProduction: options.isProduction ?? null,
+		sampleRate: options.sampleRate ?? 48000,
 	};
 };
 

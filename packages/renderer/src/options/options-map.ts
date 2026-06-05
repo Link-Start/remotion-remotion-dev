@@ -11,6 +11,7 @@ import {encodingBufferSizeOption} from './encoding-buffer-size';
 import {encodingMaxRateOption} from './encoding-max-rate';
 import {enforceAudioOption} from './enforce-audio';
 import {forSeamlessAacConcatenationOption} from './for-seamless-aac-concatenation';
+import {gopSizeOption} from './gop-size';
 import {hardwareAccelerationOption} from './hardware-acceleration';
 import {imageSequencePatternOption} from './image-sequence-pattern';
 import {jpegQualityOption} from './jpeg-quality';
@@ -23,6 +24,7 @@ import {offthreadVideoThreadsOption} from './offthreadvideo-threads';
 import {onBrowserDownloadOption} from './on-browser-download';
 import {preferLosslessAudioOption} from './prefer-lossless';
 import {reproOption} from './repro';
+import {sampleRateOption} from './sample-rate';
 import {scaleOption} from './scale';
 import {separateAudioOption} from './separate-audio';
 import {throwIfSiteExistsOption} from './throw-if-site-exists';
@@ -41,6 +43,7 @@ export const optionsMap = {
 		numberOfGifLoops: numberOfGifLoopsOption,
 		repro: reproOption,
 		x264Preset: x264Option,
+		gopSize: gopSizeOption,
 		audioBitrate: audioBitrateOption,
 		colorSpace: colorSpaceOption,
 		codec: videoCodecOption,
@@ -59,6 +62,7 @@ export const optionsMap = {
 		hardwareAcceleration: hardwareAccelerationOption,
 		chromeMode: chromeModeOption,
 		licenseKey: licenseKeyOption,
+		sampleRate: sampleRateOption,
 	},
 	stitchFramesToVideo: {
 		separateAudioTo: separateAudioOption,
@@ -109,6 +113,7 @@ export const optionsMap = {
 		onBrowserDownload: onBrowserDownloadOption,
 		chromeMode: chromeModeOption,
 		imageSequencePattern: imageSequencePatternOption,
+		sampleRate: sampleRateOption,
 	},
 	renderMediaOnLambda: {
 		mediaCacheSizeInBytes: mediaCacheSizeInBytesOption,
@@ -120,6 +125,7 @@ export const optionsMap = {
 		audioBitrate: audioBitrateOption,
 		deleteAfter: deleteAfterOption,
 		x264Preset: x264Option,
+		gopSize: gopSizeOption,
 		encodingMaxRate: encodingMaxRateOption,
 		encodingBufferSize: encodingBufferSizeOption,
 		colorSpace: colorSpaceOption,
@@ -128,6 +134,7 @@ export const optionsMap = {
 		timeoutInMilliseconds: delayRenderTimeoutInMillisecondsOption,
 		apiKey: apiKeyOption,
 		licenseKey: licenseKeyOption,
+		sampleRate: sampleRateOption,
 	},
 	renderStillOnLambda: {
 		mediaCacheSizeInBytes: mediaCacheSizeInBytesOption,
@@ -157,6 +164,7 @@ export const optionsMap = {
 		audioBitrate: audioBitrateOption,
 		videoBitrate: videoBitrateOption,
 		x264Preset: x264Option,
+		gopSize: gopSizeOption,
 		encodingMaxRate: encodingMaxRateOption,
 		encodingBufferSize: encodingBufferSizeOption,
 		muted: mutedOption,
@@ -166,6 +174,7 @@ export const optionsMap = {
 		scale: scaleOption,
 		crf: crfOption,
 		jpegQuality: jpegQualityOption,
+		sampleRate: sampleRateOption,
 	},
 	renderStillOnCloudRun: {
 		mediaCacheSizeInBytes: mediaCacheSizeInBytesOption,

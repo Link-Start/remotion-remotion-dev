@@ -53,6 +53,7 @@ export const CloudRunPayload = z.discriminatedUnion('type', [
 		scale: z.number(),
 		proResProfile,
 		x264Preset,
+		gopSize: z.number().nullable(),
 		everyNthFrame: z.number(),
 		numberOfGifLoops: z.number().nullable(),
 		frameRange: z
@@ -70,6 +71,7 @@ export const CloudRunPayload = z.discriminatedUnion('type', [
 		concurrency: z.number().or(z.string()).nullable(),
 		enforceAudioTrack: z.boolean(),
 		preferLossless: z.boolean(),
+		sampleRate: z.number(),
 		offthreadVideoCacheSizeInBytes: z.number().nullable(),
 		mediaCacheSizeInBytes: z.number().nullable(),
 		offthreadVideoThreads: z.number().nullable(),

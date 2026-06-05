@@ -18,6 +18,7 @@ export type BaseMetadata = Pick<
 	| 'defaultVideoImageFormat'
 	| 'defaultPixelFormat'
 	| 'defaultProResProfile'
+	| 'defaultSampleRate'
 >;
 
 export type CanvasContent =
@@ -54,6 +55,7 @@ export type CompositionManagerSetters = {
 		name: string,
 		parent: string | null,
 		nonce: NonceHistory,
+		stack: string | null,
 	) => void;
 	unregisterFolder: (name: string, parent: string | null) => void;
 	setCanvasContent: React.Dispatch<React.SetStateAction<CanvasContent | null>>;

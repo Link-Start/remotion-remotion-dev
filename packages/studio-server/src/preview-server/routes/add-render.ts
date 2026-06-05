@@ -33,6 +33,7 @@ export const handleAddRender: ApiHandler<AddRenderRequest, undefined> = ({
 				cancelToken: makeCancelSignal(),
 				concurrency: input.concurrency,
 				crf: input.crf,
+				gopSize: input.gopSize,
 				endFrame: input.endFrame,
 				startFrame: input.startFrame,
 				muted: input.muted,
@@ -65,6 +66,7 @@ export const handleAddRender: ApiHandler<AddRenderRequest, undefined> = ({
 				chromeMode: input.chromeMode,
 				offthreadVideoThreads: input.offthreadVideoThreads,
 				mediaCacheSizeInBytes: input.mediaCacheSizeInBytes,
+				sampleRate: input.sampleRate,
 			},
 			logLevel,
 		});

@@ -12,10 +12,12 @@ import {
 } from '../helpers/checkerboard-background';
 import {LIGHT_TEXT} from '../helpers/colors';
 import type {AssetMetadata} from '../helpers/get-asset-metadata';
+import {getPreviewFileType} from '../helpers/get-preview-file-type';
 import type {Dimensions} from '../helpers/is-current-selected-still';
 import {CheckerboardContext} from '../state/checkerboard';
 import {VERTICAL_SCROLLBAR_CLASSNAME} from './Menu/is-menu-item';
 import {RenderPreview} from './RenderPreview';
+import {SelectedOutlineOverlay} from './SelectedOutlineOverlay';
 import {Spinner} from './Spinner';
 import {StaticFilePreview} from './StaticFilePreview';
 
@@ -41,50 +43,6 @@ const assetMetadataErrorContainer: React.CSSProperties = {
 	overflowY: 'auto',
 };
 
-export type AssetFileType =
-	| 'audio'
-	| 'video'
-	| 'image'
-	| 'json'
-	| 'txt'
-	| 'other';
-export const getPreviewFileType = (fileName: string | null): AssetFileType => {
-	if (!fileName) {
-		return 'other';
-	}
-
-	const audioExtensions = ['mp3', 'wav', 'ogg', 'aac'];
-	const videoExtensions = ['mp4', 'avi', 'mkv', 'mov', 'webm'];
-	const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp'];
-
-	const fileExtension = fileName.split('.').pop()?.toLowerCase();
-	if (fileExtension === undefined) {
-		throw new Error('File extension is undefined');
-	}
-
-	if (audioExtensions.includes(fileExtension)) {
-		return 'audio';
-	}
-
-	if (videoExtensions.includes(fileExtension)) {
-		return 'video';
-	}
-
-	if (imageExtensions.includes(fileExtension)) {
-		return 'image';
-	}
-
-	if (fileExtension === 'json') {
-		return 'json';
-	}
-
-	if (fileExtension === 'txt') {
-		return 'txt';
-	}
-
-	return 'other';
-};
-
 const checkerboardSize = 49;
 
 const containerStyle = (options: {
@@ -102,6 +60,7 @@ const containerStyle = (options: {
 		width: options.width,
 		height: options.height,
 		display: 'flex',
+		overflow: 'hidden',
 		position: 'absolute',
 		backgroundColor: checkerboardBackgroundColor(options.checkerboard),
 		backgroundImage: checkerboardBackgroundImage(options.checkerboard),
@@ -211,7 +170,7 @@ const CompWhenItHasDimensions: React.FC<{
 			position: 'absolute',
 			left: centerX - previewSize.translation.x,
 			top: centerY - previewSize.translation.y,
-			overflow: 'hidden',
+			overflow: canvasContent.type === 'composition' ? 'visible' : 'hidden',
 			justifyContent: canvasContent.type === 'asset' ? 'center' : 'flex-start',
 			alignItems:
 				canvasContent.type === 'asset' &&
@@ -271,6 +230,7 @@ const CompWhenItHasDimensions: React.FC<{
 				xCorrection={xCorrection}
 				yCorrection={yCorrection}
 			/>
+			<SelectedOutlineOverlay scale={scale} />
 		</div>
 	);
 };

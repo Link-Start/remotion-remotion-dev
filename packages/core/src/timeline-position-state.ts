@@ -2,8 +2,10 @@ import type {MutableRefObject} from 'react';
 import {useContext, useMemo} from 'react';
 import {
 	AbsoluteTimeContext,
+	PlaybackRateContext,
 	SetTimelineContext,
 	TimelineContext,
+	type PlaybackRateContextValue,
 	type TimelineContextValue,
 } from './TimelineContext.js';
 import {useRemotionEnvironment} from './use-remotion-environment.js';
@@ -45,6 +47,13 @@ export const getFrameForComposition = (composition: string) => {
 	return window.remotion_initialFrame ?? 0;
 };
 
+export const clampFrameToCompositionRange = (
+	frame: number,
+	durationInFrames: number,
+) => {
+	return Math.max(0, Math.min(Math.max(0, durationInFrames - 1), frame));
+};
+
 const useTimelinePositionFromContext = (
 	state: TimelineContextValue,
 ): number => {
@@ -61,7 +70,7 @@ const useTimelinePositionFromContext = (
 		state.frame[videoConfig.id] ??
 		(env.isPlayer ? 0 : getFrameForComposition(videoConfig.id));
 
-	return Math.min(videoConfig.durationInFrames - 1, unclamped);
+	return clampFrameToCompositionRange(unclamped, videoConfig.durationInFrames);
 };
 
 export const useTimelineContext = (): TimelineContextValue => {
@@ -69,6 +78,17 @@ export const useTimelineContext = (): TimelineContextValue => {
 	if (state === null) {
 		throw new Error(
 			'TimelineContext is not available. This hook must be used inside a <Player> or the Remotion Studio.',
+		);
+	}
+
+	return state;
+};
+
+export const usePlaybackRate = (): PlaybackRateContextValue => {
+	const state = useContext(PlaybackRateContext);
+	if (state === null) {
+		throw new Error(
+			'PlaybackRateContext is not available. This hook must be used inside a <Player> or the Remotion Studio.',
 		);
 	}
 

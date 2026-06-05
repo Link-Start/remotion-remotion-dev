@@ -16,6 +16,7 @@ test('Should include concurrency field in payload', async () => {
 		pixelFormat: undefined,
 		proResProfile: undefined,
 		x264Preset: null,
+		gopSize: null,
 		privacy: 'public',
 		jpegQuality: 80,
 		maxRetries: 1,
@@ -58,6 +59,7 @@ test('Should include concurrency field in payload', async () => {
 		requestHandler: null,
 		preferLossless: false,
 		isProduction: null,
+		sampleRate: 48000,
 	});
 
 	expect(payload.type).toBe(ServerlessRoutines.start);
@@ -78,6 +80,7 @@ test('Should handle null concurrency', async () => {
 		pixelFormat: undefined,
 		proResProfile: undefined,
 		x264Preset: null,
+		gopSize: null,
 		privacy: 'public',
 		jpegQuality: 80,
 		maxRetries: 1,
@@ -120,6 +123,7 @@ test('Should handle null concurrency', async () => {
 		requestHandler: null,
 		preferLossless: false,
 		isProduction: null,
+		sampleRate: 48000,
 	});
 
 	expect(payload.type).toBe(ServerlessRoutines.start);

@@ -1,6 +1,5 @@
 import React, {useContext} from 'react';
 import {Internals} from 'remotion';
-import {useIsStill} from '../helpers/is-current-selected-still';
 import {InitialCompositionLoader} from './InitialCompositionLoader';
 import {MenuToolbar} from './MenuToolbar';
 import {SplitterContainer} from './Splitter/SplitterContainer';
@@ -8,6 +7,8 @@ import {SplitterElement} from './Splitter/SplitterElement';
 import {SplitterHandle} from './Splitter/SplitterHandle';
 import {Timeline} from './Timeline/Timeline';
 import {TimelineEmptyState} from './Timeline/TimelineEmptyState';
+import {TimelineKeyframeDragStateProvider} from './Timeline/TimelineKeyframeDragState';
+import {TimelineSelectionProvider} from './Timeline/TimelineSelection';
 
 const noop = () => undefined;
 
@@ -22,31 +23,42 @@ export const EditorContent: React.FC<{
 	readonly readOnlyStudio: boolean;
 	readonly children: React.ReactNode;
 }> = ({readOnlyStudio, children}) => {
-	const isStill = useIsStill();
 	const {canvasContent} = useContext(Internals.CompositionManager);
 
 	const showTimeline =
-		canvasContent !== null && !isStill && canvasContent.type === 'composition';
+		canvasContent !== null && canvasContent.type === 'composition';
+
+	const content = (
+		<SplitterContainer
+			orientation="horizontal"
+			id="top-to-bottom"
+			maxFlex={0.9}
+			minFlex={0.2}
+			defaultFlex={0.75}
+		>
+			<SplitterElement sticky={null} type="flexer">
+				{children}
+			</SplitterElement>
+			<SplitterHandle allowToCollapse="none" onCollapse={noop} />
+			<SplitterElement sticky={null} type="anti-flexer">
+				{showTimeline ? <Timeline /> : <TimelineEmptyState />}
+			</SplitterElement>
+		</SplitterContainer>
+	);
 
 	return (
 		<div style={container}>
 			<InitialCompositionLoader />
 			<MenuToolbar readOnlyStudio={readOnlyStudio} />
-			<SplitterContainer
-				orientation="horizontal"
-				id="top-to-bottom"
-				maxFlex={0.9}
-				minFlex={0.2}
-				defaultFlex={0.75}
-			>
-				<SplitterElement sticky={null} type="flexer">
-					{children}
-				</SplitterElement>
-				<SplitterHandle allowToCollapse="none" onCollapse={noop} />
-				<SplitterElement sticky={null} type="anti-flexer">
-					{showTimeline ? <Timeline /> : <TimelineEmptyState />}
-				</SplitterElement>
-			</SplitterContainer>
+			{showTimeline ? (
+				<TimelineSelectionProvider>
+					<TimelineKeyframeDragStateProvider>
+						{content}
+					</TimelineKeyframeDragStateProvider>
+				</TimelineSelectionProvider>
+			) : (
+				content
+			)}
 		</div>
 	);
 };

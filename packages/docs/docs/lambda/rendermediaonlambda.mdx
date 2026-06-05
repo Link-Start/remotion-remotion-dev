@@ -149,6 +149,10 @@ Overrides the default composition duration in frames.
 
 Disables audio output. See also [`renderMedia() -> muted`](/docs/renderer/render-media#muted).
 
+### `sampleRate?`<AvailableFrom v="4.0.448" />
+
+<Options id="sample-rate" />
+
 ### `imageFormat?`
 
 Optional since <AvailableFrom v="3.2.27" />.
@@ -174,6 +178,12 @@ See [`renderMedia() -> proResProfile`](/docs/renderer/render-media#proresprofile
 ### `x264Preset?`
 
 <Options id="x264-preset" />
+
+### `gopSize?`<AvailableFrom v="4.0.466" />
+
+<Options id="gop" />
+
+On Lambda, this sets the maximum GOP size per chunk. Additional keyframes will appear at chunk boundaries, every `framesPerLambda` frames.
 
 ### `jpegQuality?`
 

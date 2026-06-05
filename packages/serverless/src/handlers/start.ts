@@ -96,6 +96,7 @@ export const startHandler = async <Provider extends CloudProvider>({
 		pixelFormat: params.pixelFormat ?? null,
 		proResProfile: params.proResProfile ?? null,
 		x264Preset: params.x264Preset,
+		gopSize: params.gopSize ?? null,
 		jpegQuality: params.jpegQuality,
 		maxRetries: params.maxRetries,
 		privacy: params.privacy,
@@ -133,6 +134,7 @@ export const startHandler = async <Provider extends CloudProvider>({
 		storageClass: params.storageClass,
 		mediaCacheSizeInBytes: params.mediaCacheSizeInBytes,
 		isProduction: params.isProduction ?? true,
+		sampleRate: params.sampleRate ?? 48000,
 	};
 
 	await providerSpecifics.callFunctionAsync({

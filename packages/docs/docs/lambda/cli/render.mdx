@@ -167,6 +167,12 @@ Renamed to `jpegQuality` in `v4.0.0`.
 
 <Options id="x264-preset" />
 
+### `--gop`<AvailableFrom v="4.0.466" />
+
+<Options id="gop" />
+
+On Lambda, this sets the maximum GOP size per chunk. Additional keyframes will appear at chunk boundaries, every `--frames-per-lambda` frames.
+
 ### `--crf`
 
 [To set Constant Rate Factor (CRF) of the output](/docs/config#setcrf). Minimum 0. Use this rate control mode if you want to keep the best quality and care less about the file size.
@@ -304,6 +310,10 @@ Lets you set a custom user agent that the headless Chrome browser assumes.
 ### `--metadata`<AvailableFrom v="4.0.216" />
 
 <Options cli id="metadata" />
+
+### `--sample-rate`<AvailableFrom v="4.0.448" />
+
+<Options cli id="sample-rate" />
 
 ### `--force-path-style`<AvailableFrom v="4.0.202" />
 

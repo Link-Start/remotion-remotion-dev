@@ -72,6 +72,19 @@ test('It should render Video with trimBefore and trimAfter props', () => {
 	).not.toThrow();
 });
 
+test('It should render Video with onVideoFrame metadata arguments', () => {
+	expect(() =>
+		render(
+			<WrapSequenceContext>
+				<Html5Video
+					src="test"
+					onVideoFrame={(_frame, _now, _metadata) => undefined}
+				/>
+			</WrapSequenceContext>,
+		),
+	).not.toThrow();
+});
+
 test('It should throw when both startFrom and trimBefore are provided', () => {
 	expect(() =>
 		render(
@@ -90,4 +103,20 @@ test('It should throw when both endAt and trimAfter are provided', () => {
 			</WrapSequenceContext>,
 		),
 	).toThrow(/Cannot use both endAt and trimAfter props/);
+});
+
+test('It should reject invalid preservePitch values on Video', () => {
+	expect(() =>
+		render(
+			<WrapSequenceContext>
+				<Html5Video
+					// @ts-expect-error
+					preservePitch="yes"
+					src="test"
+				/>
+			</WrapSequenceContext>,
+		),
+	).toThrow(
+		/'preservePitch' must be a boolean or undefined but got 'string' instead/,
+	);
 });

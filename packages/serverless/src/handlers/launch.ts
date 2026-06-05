@@ -283,6 +283,7 @@ const innerLaunchHandler = async <Provider extends CloudProvider>({
 			pixelFormat: params.pixelFormat,
 			proResProfile: params.proResProfile,
 			x264Preset: params.x264Preset,
+			gopSize: params.gopSize ?? null,
 			jpegQuality: params.jpegQuality,
 			privacy: params.privacy,
 			logLevel: params.logLevel ?? 'info',
@@ -312,6 +313,7 @@ const innerLaunchHandler = async <Provider extends CloudProvider>({
 			metadata: params.metadata,
 			offthreadVideoThreads: params.offthreadVideoThreads,
 			mediaCacheSizeInBytes: params.mediaCacheSizeInBytes,
+			sampleRate: params.sampleRate,
 		};
 		return payload;
 	});
@@ -539,6 +541,7 @@ const innerLaunchHandler = async <Provider extends CloudProvider>({
 		frameRange: params.frameRange,
 		storageClass: params.storageClass,
 		requestHandler: null,
+		sampleRate: params.sampleRate,
 	});
 
 	return postRenderData;

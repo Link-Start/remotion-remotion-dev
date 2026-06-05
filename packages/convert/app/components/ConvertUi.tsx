@@ -1,4 +1,3 @@
-import type MediaFox from '@mediafox/core';
 import {Button} from '@remotion/design';
 import type {
 	CropRectangle,
@@ -27,6 +26,7 @@ import {
 	getActualVideoOperation,
 } from '~/lib/get-audio-video-config-index';
 import {getDefaultOutputFormat} from '~/lib/get-default-output-format';
+import {getDurationOrCompute} from '~/lib/get-duration-or-compute';
 import {getInitialResizeSuggestion} from '~/lib/get-initial-resize-suggestion';
 import {isReencoding} from '~/lib/is-reencoding';
 import {isSubmitDisabled} from '~/lib/is-submit-enabled';
@@ -73,7 +73,6 @@ const ConvertUI = ({
 	sampleRate,
 	name,
 	input,
-	mediafox,
 	crop,
 	cropRect,
 }: {
@@ -101,7 +100,6 @@ const ConvertUI = ({
 	readonly setFlipVertical: React.Dispatch<React.SetStateAction<boolean>>;
 	readonly crop: boolean;
 	readonly sampleRate: number | null;
-	readonly mediafox: MediaFox;
 	readonly cropRect: CropRectangle;
 }) => {
 	const [outputContainer, setOutputContainer] = useState<OutputContainer>(() =>
@@ -221,7 +219,7 @@ const ConvertUI = ({
 				target: new StreamTarget(stream),
 			});
 
-			const duration = await input.computeDuration();
+			const duration = await getDurationOrCompute(input);
 			waveform.setDuration(duration);
 
 			let videoFrames = 0;
@@ -525,7 +523,6 @@ const ConvertUI = ({
 		return (
 			<>
 				<ConvertProgress
-					mediafox={mediafox}
 					state={state.state}
 					newName={state.newName}
 					done={false}
@@ -554,7 +551,6 @@ const ConvertUI = ({
 			<>
 				<ConvertProgress
 					done
-					mediafox={mediafox}
 					state={state.state}
 					newName={state.newName}
 					duration={durationInSeconds}

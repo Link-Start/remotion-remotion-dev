@@ -1,5 +1,9 @@
 import {expect, test} from 'bun:test';
-import {updateSequenceProps} from '../codemods/update-sequence-props';
+import {NoReactInternals} from 'remotion/no-react';
+import {
+	updateMultipleSequenceProps,
+	updateSequenceProps,
+} from '../codemods/update-sequence-props/update-sequence-props';
 import {lineColumnToNodePath} from './test-utils';
 
 const lightLeakInput = `import {LightLeak} from '@remotion/light-leaks';
@@ -17,13 +21,14 @@ export const LightLeakExample: React.FC = () => {
 `;
 
 test('updateSequenceProps should update a number value', async () => {
-	const {output, oldValueString} = await updateSequenceProps({
+	const {output, oldValueStrings} = await updateSequenceProps({
 		input: lightLeakInput,
 		nodePath: lineColumnToNodePath(lightLeakInput, 8),
-		key: 'hueShift',
-		value: 90,
-		defaultValue: null,
+		updates: [{key: 'hueShift', value: 90, defaultValue: null}],
+		schema: NoReactInternals.sequenceSchema,
+		prettierConfigOverride: null,
 	});
+	const oldValueString = oldValueStrings[0];
 
 	expect(oldValueString).toBe('30');
 	expect(output).toContain('hueShift={90}');
@@ -32,13 +37,14 @@ test('updateSequenceProps should update a number value', async () => {
 });
 
 test('updateSequenceProps should update durationInFrames', async () => {
-	const {output, oldValueString} = await updateSequenceProps({
+	const {output, oldValueStrings} = await updateSequenceProps({
 		input: lightLeakInput,
 		nodePath: lineColumnToNodePath(lightLeakInput, 9),
-		key: 'durationInFrames',
-		value: 120,
-		defaultValue: null,
+		updates: [{key: 'durationInFrames', value: 120, defaultValue: null}],
+		schema: NoReactInternals.sequenceSchema,
+		prettierConfigOverride: null,
 	});
+	const oldValueString = oldValueStrings[0];
 
 	expect(oldValueString).toBe('60');
 	expect(output.split('\n')[8]).toContain('durationInFrames={120}');
@@ -47,26 +53,28 @@ test('updateSequenceProps should update durationInFrames', async () => {
 });
 
 test('updateSequenceProps should add a new attribute', async () => {
-	const {output, oldValueString} = await updateSequenceProps({
+	const {output, oldValueStrings} = await updateSequenceProps({
 		input: lightLeakInput,
 		nodePath: lineColumnToNodePath(lightLeakInput, 9),
-		key: 'speed',
-		value: 2,
-		defaultValue: null,
+		updates: [{key: 'speed', value: 2, defaultValue: null}],
+		schema: NoReactInternals.sequenceSchema,
+		prettierConfigOverride: null,
 	});
+	const oldValueString = oldValueStrings[0];
 
 	expect(oldValueString).toBe('');
 	expect(output.split('\n')[8]).toContain('speed={2}');
 });
 
 test('updateSequenceProps should remove attribute when value equals default', async () => {
-	const {output, oldValueString} = await updateSequenceProps({
+	const {output, oldValueStrings} = await updateSequenceProps({
 		input: lightLeakInput,
 		nodePath: lineColumnToNodePath(lightLeakInput, 9),
-		key: 'hueShift',
-		value: 0,
-		defaultValue: 0,
+		updates: [{key: 'hueShift', value: 0, defaultValue: 0}],
+		schema: NoReactInternals.sequenceSchema,
+		prettierConfigOverride: null,
 	});
+	const oldValueString = oldValueStrings[0];
 
 	expect(oldValueString).toBe('30');
 	expect(output.split('\n')[8]).not.toContain('hueShift');
@@ -78,9 +86,9 @@ test('updateSequenceProps should set boolean true as shorthand', async () => {
 	const {output} = await updateSequenceProps({
 		input: lightLeakInput,
 		nodePath: lineColumnToNodePath(lightLeakInput, 8),
-		key: 'loop',
-		value: true,
-		defaultValue: false,
+		updates: [{key: 'loop', value: true, defaultValue: false}],
+		schema: NoReactInternals.sequenceSchema,
+		prettierConfigOverride: null,
 	});
 
 	// true booleans become shorthand: `loop` not `loop={true}`
@@ -89,25 +97,27 @@ test('updateSequenceProps should set boolean true as shorthand', async () => {
 });
 
 test('updateSequenceProps should report oldValueString for computed expressions', async () => {
-	const {oldValueString} = await updateSequenceProps({
+	const {oldValueStrings} = await updateSequenceProps({
 		input: lightLeakInput,
 		nodePath: lineColumnToNodePath(lightLeakInput, 8),
-		key: 'seed',
-		value: 5,
-		defaultValue: null,
+		updates: [{key: 'seed', value: 5, defaultValue: null}],
+		schema: NoReactInternals.sequenceSchema,
+		prettierConfigOverride: null,
 	});
+	const oldValueString = oldValueStrings[0];
 
 	expect(oldValueString).toBe('1 + 2');
 });
 
 test('updateSequenceProps should report default as oldValueString for missing attribute', async () => {
-	const {oldValueString} = await updateSequenceProps({
+	const {oldValueStrings} = await updateSequenceProps({
 		input: lightLeakInput,
 		nodePath: lineColumnToNodePath(lightLeakInput, 8),
-		key: 'speed',
-		value: 2,
-		defaultValue: 1,
+		updates: [{key: 'speed', value: 2, defaultValue: 1}],
+		schema: NoReactInternals.sequenceSchema,
+		prettierConfigOverride: null,
 	});
+	const oldValueString = oldValueStrings[0];
 
 	expect(oldValueString).toBe('1');
 });
@@ -117,11 +127,35 @@ test('updateSequenceProps should throw for non-existent nodePath', async () => {
 		updateSequenceProps({
 			input: lightLeakInput,
 			nodePath: ['program', 'body', 999],
-			key: 'hueShift',
-			value: 90,
-			defaultValue: null,
+			updates: [{key: 'hueShift', value: 90, defaultValue: null}],
+			schema: NoReactInternals.sequenceSchema,
+			prettierConfigOverride: null,
 		}),
 	).rejects.toThrow(
 		'Could not find a JSX element at the specified line to update',
 	);
+});
+
+test('updateMultipleSequenceProps should update multiple nodes in one format pass', async () => {
+	const {output, results} = await updateMultipleSequenceProps({
+		input: lightLeakInput,
+		changes: [
+			{
+				nodePath: lineColumnToNodePath(lightLeakInput, 8),
+				updates: [{key: 'hueShift', value: 90, defaultValue: null}],
+				schema: NoReactInternals.sequenceSchema,
+			},
+			{
+				nodePath: lineColumnToNodePath(lightLeakInput, 9),
+				updates: [{key: 'durationInFrames', value: 120, defaultValue: null}],
+				schema: NoReactInternals.sequenceSchema,
+			},
+		],
+		prettierConfigOverride: null,
+	});
+
+	expect(results[0].oldValueStrings[0]).toBe('30');
+	expect(results[1].oldValueStrings[0]).toBe('60');
+	expect(output.split('\n')[7]).toContain('hueShift={90}');
+	expect(output.split('\n')[8]).toContain('durationInFrames={120}');
 });

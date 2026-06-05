@@ -1,9 +1,16 @@
-import type {FC, PropsWithChildren} from 'react';
-import React, {Children, forwardRef, useMemo} from 'react';
+import React, {
+	Children,
+	forwardRef,
+	useMemo,
+	type FC,
+	type PropsWithChildren,
+} from 'react';
 import {addSequenceStackTraces} from '../enable-sequence-stack-traces.js';
+import {sequenceSchemaDefaultLayoutNone} from '../sequence-field-schema.js';
 import type {LayoutAndStyle, SequenceProps} from '../Sequence.js';
 import {Sequence} from '../Sequence.js';
 import {validateDurationInFrames} from '../validation/validate-duration-in-frames.js';
+import {wrapInSchema} from '../wrap-in-schema.js';
 import {flattenChildren} from './flatten-children.js';
 import {
 	IsInsideSeriesContainer,
@@ -16,14 +23,13 @@ type SeriesSequenceProps = PropsWithChildren<
 		readonly durationInFrames: number;
 		readonly offset?: number;
 		readonly className?: string;
-	} & Pick<SequenceProps, 'layout' | 'name'> &
+	} & Pick<SequenceProps, 'layout' | 'name' | 'hidden'> &
 		LayoutAndStyle
 >;
 
 const SeriesSequenceRefForwardingFunction: React.ForwardRefRenderFunction<
 	HTMLDivElement,
 	SeriesSequenceProps
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 > = ({children}, _ref) => {
 	useRequireToBeInsideSeries();
 	// Discard ref
@@ -35,13 +41,7 @@ const SeriesSequence = forwardRef(SeriesSequenceRefForwardingFunction);
 
 type SeriesProps = SequenceProps;
 
-/**
- * @description with this component, you can easily stitch together scenes that should play sequentially after another.
- * @see [Documentation](https://www.remotion.dev/docs/series)
- */
-const Series: FC<SeriesProps> & {
-	Sequence: typeof SeriesSequence;
-} = (props) => {
+const SeriesInner: FC<SeriesProps> = (props) => {
 	const childrenValue = useMemo(() => {
 		let startFrame = 0;
 		const flattenedChildren = flattenChildren(props.children);
@@ -71,12 +71,6 @@ const Series: FC<SeriesProps> & {
 			}
 
 			const debugInfo = `index = ${i}, duration = ${castedChild.props.durationInFrames}`;
-
-			if (!castedChild?.props.children) {
-				throw new TypeError(
-					`A <Series.Sequence /> component (${debugInfo}) was detected to not have any children. Delete it to fix this error.`,
-				);
-			}
 
 			const durationInFramesProp = castedChild.props.durationInFrames;
 			const {
@@ -118,9 +112,13 @@ const Series: FC<SeriesProps> & {
 
 			const currentStartFrame = startFrame + offset;
 			startFrame += durationInFramesProp + offset;
+
 			return (
 				<Sequence
 					name={name || '<Series.Sequence>'}
+					_remotionInternalDocumentationLink={
+						name ? undefined : 'https://www.remotion.dev/docs/series'
+					}
 					from={currentStartFrame}
 					durationInFrames={durationInFramesProp}
 					{...passedProps}
@@ -134,14 +132,34 @@ const Series: FC<SeriesProps> & {
 
 	return (
 		<IsInsideSeriesContainer>
-			<Sequence layout="none" name="<Series>" {...props}>
+			<Sequence
+				layout="none"
+				name="<Series>"
+				_remotionInternalDocumentationLink="https://www.remotion.dev/docs/series"
+				{...props}
+			>
 				{childrenValue}
 			</Sequence>
 		</IsInsideSeriesContainer>
 	);
 };
 
-Series.Sequence = SeriesSequence;
+/**
+ * @description with this component, you can easily stitch together scenes that should play sequentially after another.
+ * @see [Documentation](https://www.remotion.dev/docs/series)
+ */
+const Series: React.ComponentType<SeriesProps> & {
+	Sequence: typeof SeriesSequence;
+} = Object.assign(
+	wrapInSchema({
+		Component: SeriesInner,
+		schema: sequenceSchemaDefaultLayoutNone,
+		supportsEffects: false,
+	}),
+	{
+		Sequence: SeriesSequence,
+	},
+);
 
 export {Series};
 

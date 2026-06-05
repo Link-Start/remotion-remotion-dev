@@ -1,5 +1,5 @@
 import type {FC, PropsWithChildren} from 'react';
-import {Children, useMemo} from 'react';
+import React, {Children, useCallback, useMemo, useRef} from 'react';
 import type {
 	AbsoluteFillLayout,
 	LayoutAndStyle,
@@ -71,15 +71,93 @@ type TypeChild<PresentationProps extends Record<string, unknown>> =
 	| OverlayType
 	| string;
 
+export type DrawFunction = (
+	prevImage: ElementImage | null,
+	nextImage: ElementImage | null,
+	progress: number,
+) => void;
+
+type ElementImageAndProgress = {
+	elementImage: ElementImage | null;
+	progress: number | null;
+	draw: DrawFunction | null;
+};
+
+type ImageMap = Record<number, ElementImageAndProgress>;
+
 const TransitionSeriesChildren: FC<{readonly children: React.ReactNode}> = ({
 	children,
 }) => {
 	const {fps} = useVideoConfig();
 	const frame = useCurrentFrame();
+
+	const prevImageRef = useRef<ImageMap>({});
+	const nextImageRef = useRef<ImageMap>({});
+
+	const flattedChildren = useMemo(() => {
+		return flattenChildren(children);
+	}, [children]);
+
+	const drawIfSynced = useCallback((index: number) => {
+		const prevImage = prevImageRef?.current?.[index];
+		const nextImage = nextImageRef?.current?.[index];
+		if (!nextImage?.elementImage && prevImage?.elementImage) {
+			nextImage?.draw?.(null, null, 0);
+			prevImage?.draw?.(prevImage?.elementImage ?? null, null, 0);
+			return;
+		}
+
+		if (!prevImage?.elementImage && nextImage?.elementImage) {
+			prevImage?.draw?.(null, null, 0);
+			nextImage?.draw?.(null, nextImage?.elementImage ?? null, 0);
+			return;
+		}
+
+		if (
+			(prevImage && nextImage && prevImage.progress === nextImage.progress) ||
+			!prevImage?.elementImage ||
+			!nextImage?.elementImage
+		) {
+			prevImage?.draw?.(
+				prevImage?.elementImage ?? null,
+				nextImage?.elementImage ?? null,
+				prevImage?.progress ?? nextImage?.progress ?? 0,
+			);
+			nextImage?.draw?.(null, null, 0);
+		}
+	}, []);
+
+	const onNextElementImage = useCallback(
+		(
+			elementImage: ElementImage | null,
+			progress: number | null,
+			draw: DrawFunction | null,
+			index: number,
+		) => {
+			prevImageRef.current[index] = {elementImage, progress, draw};
+
+			drawIfSynced(index);
+		},
+		[drawIfSynced],
+	);
+
+	const onPrevElementImage = useCallback(
+		(
+			elementImage: ElementImage | null,
+			progress: number | null,
+			draw: DrawFunction | null,
+			index: number,
+		) => {
+			nextImageRef.current[index] = {elementImage, progress, draw};
+
+			drawIfSynced(index);
+		},
+		[drawIfSynced],
+	);
+
 	const childrenValue = useMemo(() => {
 		let transitionOffsets = 0;
 		let startFrame = 0;
-		const flattedChildren = flattenChildren(children);
 
 		// Collect overlay render info to emit after the main loop
 		const overlayRenders: React.ReactNode[] = [];
@@ -262,12 +340,6 @@ const TransitionSeriesChildren: FC<{readonly children: React.ReactNode}> = ({
 
 			const debugInfo = `index = ${i}, duration = ${castedChildAgain.props.durationInFrames}`;
 
-			if (!castedChildAgain?.props.children) {
-				throw new TypeError(
-					`A <TransitionSeries.Sequence /> component (${debugInfo}) was detected to not have any children. Delete it to fix this error.`,
-				);
-			}
-
 			const durationInFramesProp = castedChildAgain.props.durationInFrames;
 			const {
 				durationInFrames,
@@ -395,6 +467,11 @@ const TransitionSeriesChildren: FC<{readonly children: React.ReactNode}> = ({
 						durationInFrames={durationInFramesProp}
 						{...passedProps}
 						name={passedProps.name || '<TS.Sequence>'}
+						_remotionInternalDocumentationLink={
+							passedProps.name
+								? undefined
+								: 'https://www.remotion.dev/docs/transitions/transitionseries'
+						}
 					>
 						<UppercaseNextPresentation
 							passedProps={nextPresentation.props ?? {}}
@@ -403,6 +480,13 @@ const TransitionSeriesChildren: FC<{readonly children: React.ReactNode}> = ({
 							presentationDurationInFrames={next.props.timing.getDurationInFrames(
 								{fps},
 							)}
+							onElementImage={() => {
+								throw new Error('Should not call when exiting');
+							}}
+							onUnmount={() => {
+								throw new Error('Should not call when exiting');
+							}}
+							bothEnteringAndExiting
 						>
 							<WrapInExitingProgressContext presentationProgress={nextProgress}>
 								<UppercasePrevPresentation
@@ -412,6 +496,15 @@ const TransitionSeriesChildren: FC<{readonly children: React.ReactNode}> = ({
 									presentationDurationInFrames={prev.props.timing.getDurationInFrames(
 										{fps},
 									)}
+									onElementImage={(elementImage, draw) => {
+										onPrevElementImage(elementImage, nextProgress, draw, i + 1);
+										onNextElementImage(elementImage, prevProgress, draw, i - 1);
+									}}
+									onUnmount={() => {
+										onPrevElementImage(null, null, null, i + 1);
+										onNextElementImage(null, null, null, i - 1);
+									}}
+									bothEnteringAndExiting
 								>
 									<WrapInEnteringProgressContext
 										presentationProgress={prevProgress}
@@ -438,6 +531,11 @@ const TransitionSeriesChildren: FC<{readonly children: React.ReactNode}> = ({
 						durationInFrames={durationInFramesProp}
 						{...passedProps}
 						name={passedProps.name || '<TS.Sequence>'}
+						_remotionInternalDocumentationLink={
+							passedProps.name
+								? undefined
+								: 'https://www.remotion.dev/docs/transitions/transitionseries'
+						}
 					>
 						<UppercasePrevPresentation
 							passedProps={prevPresentation.props ?? {}}
@@ -446,6 +544,13 @@ const TransitionSeriesChildren: FC<{readonly children: React.ReactNode}> = ({
 							presentationDurationInFrames={prev.props.timing.getDurationInFrames(
 								{fps},
 							)}
+							onElementImage={(elementImage, draw) =>
+								onNextElementImage(elementImage, prevProgress, draw, i - 1)
+							}
+							onUnmount={() => {
+								onNextElementImage(null, null, null, i - 1);
+							}}
+							bothEnteringAndExiting={false}
 						>
 							<WrapInEnteringProgressContext
 								presentationProgress={prevProgress}
@@ -470,6 +575,11 @@ const TransitionSeriesChildren: FC<{readonly children: React.ReactNode}> = ({
 						durationInFrames={durationInFramesProp}
 						{...passedProps}
 						name={passedProps.name || '<TS.Sequence>'}
+						_remotionInternalDocumentationLink={
+							passedProps.name
+								? undefined
+								: 'https://www.remotion.dev/docs/transitions/transitionseries'
+						}
 					>
 						<UppercaseNextPresentation
 							passedProps={nextPresentation.props ?? {}}
@@ -478,6 +588,13 @@ const TransitionSeriesChildren: FC<{readonly children: React.ReactNode}> = ({
 							presentationDurationInFrames={next.props.timing.getDurationInFrames(
 								{fps},
 							)}
+							onElementImage={(elementImage, draw) =>
+								onPrevElementImage(elementImage, nextProgress, draw, i + 1)
+							}
+							onUnmount={() => {
+								onPrevElementImage(null, null, null, i + 1);
+							}}
+							bothEnteringAndExiting={false}
 						>
 							<WrapInExitingProgressContext presentationProgress={nextProgress}>
 								{child}
@@ -495,6 +612,11 @@ const TransitionSeriesChildren: FC<{readonly children: React.ReactNode}> = ({
 					durationInFrames={durationInFramesProp}
 					{...passedProps}
 					name={passedProps.name || '<TS.Sequence>'}
+					_remotionInternalDocumentationLink={
+						passedProps.name
+							? undefined
+							: 'https://www.remotion.dev/docs/transitions/transitionseries'
+					}
 				>
 					{child}
 				</Sequence>
@@ -518,6 +640,7 @@ const TransitionSeriesChildren: FC<{readonly children: React.ReactNode}> = ({
 					from={Math.round(info.overlayFrom)}
 					durationInFrames={info.durationInFrames}
 					name="<TS.Overlay>"
+					_remotionInternalDocumentationLink="https://www.remotion.dev/docs/transitions/transitionseries"
 					layout="absolute-fill"
 					{...(info.stack ? {stack: info.stack} : {})}
 				>
@@ -527,7 +650,7 @@ const TransitionSeriesChildren: FC<{readonly children: React.ReactNode}> = ({
 		});
 
 		return [...(mainChildren || []), ...overlayElements];
-	}, [children, fps, frame]);
+	}, [flattedChildren, fps, frame, onPrevElementImage, onNextElementImage]);
 
 	// eslint-disable-next-line react/jsx-no-useless-fragment
 	return <>{childrenValue}</>;
@@ -554,7 +677,16 @@ const TransitionSeries: FC<SequencePropsWithoutDuration> & {
 	}
 
 	return (
-		<Sequence name={displayName} layout={layout} {...otherProps}>
+		<Sequence
+			name={displayName}
+			layout={layout}
+			_remotionInternalDocumentationLink={
+				name === undefined
+					? 'https://www.remotion.dev/docs/transitions/transitionseries'
+					: undefined
+			}
+			{...otherProps}
+		>
 			<TransitionSeriesChildren>{children}</TransitionSeriesChildren>
 		</Sequence>
 	);

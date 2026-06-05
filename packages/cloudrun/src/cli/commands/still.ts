@@ -141,6 +141,7 @@ export const stillCommand = async (
 			offthreadVideoCacheSizeInBytes,
 			binariesDirectory,
 			forceIPv4: false,
+			sampleRate: 48000,
 		});
 
 		const indent = false;
@@ -224,6 +225,7 @@ ${downloadName ? `    Downloaded File = ${downloadName}` : ''}
 		cancelSignal: null,
 		updatesDontOverwrite: false,
 		indent: false,
+		logLevel,
 	});
 
 	type DoneIn = number | null;

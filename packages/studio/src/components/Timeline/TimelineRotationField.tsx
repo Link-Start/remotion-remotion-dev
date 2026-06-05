@@ -1,7 +1,16 @@
 import React, {useCallback, useMemo, useState} from 'react';
-import type {SchemaFieldInfo} from '../../helpers/timeline-layout';
+import type {CanUpdateSequencePropStatusStatic} from 'remotion';
+import type {
+	SchemaFieldInfo,
+	TimelineFieldOnDragValueChange,
+	TimelineFieldOnSave,
+} from '../../helpers/timeline-layout';
 import {InputDragger} from '../NewComposition/InputDragger';
-import {draggerStyle, getDecimalPlaces} from './timeline-field-utils';
+import {
+	draggerStyle,
+	getDecimalPlaces,
+	normalizeTimelineNumber,
+} from './timeline-field-utils';
 
 const unitPattern = /^([+-]?(?:\d+\.?\d*|\.\d+))(deg|rad|turn|grad)$/;
 
@@ -15,12 +24,12 @@ const unitToDegrees: Record<string, number> = {
 const parseCssRotationToDegrees = (value: string): number => {
 	const match = value.trim().match(unitPattern);
 	if (match) {
-		return Number(match[1]) * unitToDegrees[match[2]];
+		return normalizeTimelineNumber(Number(match[1]) * unitToDegrees[match[2]]);
 	}
 
 	try {
 		const m = new DOMMatrix(`rotate(${value})`);
-		return Math.round(Math.atan2(m.b, m.a) * (180 / Math.PI) * 1e6) / 1e6;
+		return normalizeTimelineNumber(Math.atan2(m.b, m.a) * (180 / Math.PI));
 	} catch {
 		return 0;
 	}
@@ -29,40 +38,50 @@ const parseCssRotationToDegrees = (value: string): number => {
 export const TimelineRotationField: React.FC<{
 	readonly field: SchemaFieldInfo;
 	readonly effectiveValue: unknown;
-	readonly codeValue: unknown;
-	readonly canUpdate: boolean;
-	readonly onSave: (key: string, value: unknown) => Promise<void>;
-	readonly onDragValueChange: (key: string, value: unknown) => void;
+	readonly propStatus: CanUpdateSequencePropStatusStatic;
+	readonly onSave: TimelineFieldOnSave;
+	readonly onDragValueChange: TimelineFieldOnDragValueChange;
 	readonly onDragEnd: () => void;
 }> = ({
 	field,
 	effectiveValue,
-	codeValue,
-	canUpdate,
+	propStatus,
 	onSave,
 	onDragValueChange,
 	onDragEnd,
 }) => {
 	const [dragValue, setDragValue] = useState<number | null>(null);
+	const isCssRotation = field.fieldSchema.type === 'rotation-css';
 
-	const degrees = useMemo(
-		() => parseCssRotationToDegrees(String(effectiveValue ?? '0deg')),
-		[effectiveValue],
+	const degrees = useMemo(() => {
+		if (isCssRotation) {
+			return parseCssRotationToDegrees(String(effectiveValue ?? '0deg'));
+		}
+
+		return typeof effectiveValue === 'number' ? effectiveValue : 0;
+	}, [effectiveValue, isCssRotation]);
+
+	const serializeValue = useCallback(
+		(value: number) => {
+			const normalized = normalizeTimelineNumber(value);
+			return isCssRotation ? `${normalized}deg` : normalized;
+		},
+		[isCssRotation],
 	);
 
 	const onValueChange = useCallback(
 		(newVal: number) => {
 			setDragValue(newVal);
-			onDragValueChange(field.key, `${newVal}deg`);
+			onDragValueChange(serializeValue(newVal));
 		},
-		[onDragValueChange, field.key],
+		[onDragValueChange, serializeValue],
 	);
 
 	const onValueChangeEnd = useCallback(
 		(newVal: number) => {
-			const newStr = `${newVal}deg`;
-			if (canUpdate && newStr !== codeValue) {
-				onSave(field.key, newStr).finally(() => {
+			const newValue = serializeValue(newVal);
+			if (newValue !== propStatus.codeValue) {
+				onSave(newValue).finally(() => {
 					setDragValue(null);
 					onDragEnd();
 				});
@@ -71,35 +90,44 @@ export const TimelineRotationField: React.FC<{
 				onDragEnd();
 			}
 		},
-		[canUpdate, onSave, field.key, codeValue, onDragEnd],
+		[propStatus, onSave, onDragEnd, serializeValue],
 	);
 
 	const onTextChange = useCallback(
 		(newVal: string) => {
-			if (canUpdate) {
-				const parsed = Number(newVal);
-				if (!Number.isNaN(parsed)) {
-					const newStr = `${parsed}deg`;
-					if (newStr !== codeValue) {
-						setDragValue(parsed);
-						onSave(field.key, newStr).catch(() => {
-							setDragValue(null);
-						});
-					}
+			const parsed = Number(newVal);
+			if (!Number.isNaN(parsed)) {
+				const newValue = serializeValue(parsed);
+				if (newValue !== propStatus.codeValue) {
+					setDragValue(parsed);
+					onSave(newValue).finally(() => {
+						setDragValue(null);
+					});
 				}
 			}
 		},
-		[canUpdate, onSave, field.key, codeValue],
+		[propStatus, onSave, serializeValue],
 	);
 
 	const step =
-		field.fieldSchema.type === 'rotation' ? (field.fieldSchema.step ?? 1) : 1;
+		field.fieldSchema.type === 'rotation-css' ||
+		field.fieldSchema.type === 'rotation-degrees'
+			? (field.fieldSchema.step ?? 1)
+			: 1;
+	const min =
+		field.fieldSchema.type === 'rotation-degrees'
+			? (field.fieldSchema.min ?? -Infinity)
+			: -Infinity;
+	const max =
+		field.fieldSchema.type === 'rotation-degrees'
+			? (field.fieldSchema.max ?? Infinity)
+			: Infinity;
 
 	const stepDecimals = useMemo(() => getDecimalPlaces(step), [step]);
 
 	const formatter = useCallback(
 		(v: number | string) => {
-			const num = Number(v);
+			const num = normalizeTimelineNumber(Number(v));
 			const digits = Math.max(stepDecimals, getDecimalPlaces(num));
 			const formatted = digits === 0 ? String(num) : num.toFixed(digits);
 			return `${formatted}\u00B0`;
@@ -117,8 +145,8 @@ export const TimelineRotationField: React.FC<{
 			onValueChange={onValueChange}
 			onValueChangeEnd={onValueChangeEnd}
 			onTextChange={onTextChange}
-			min={-Infinity}
-			max={Infinity}
+			min={min}
+			max={max}
 			step={step}
 			formatter={formatter}
 			rightAlign={false}

@@ -126,6 +126,7 @@ export type ServerlessStartPayload<Provider extends CloudProvider> = {
 	pixelFormat: PixelFormat | undefined | null;
 	proResProfile: _InternalTypes['ProResProfile'] | undefined | null;
 	x264Preset: X264Preset | null;
+	gopSize: number | null;
 	jpegQuality: number | undefined;
 	maxRetries: number;
 	privacy: Privacy;
@@ -163,6 +164,7 @@ export type ServerlessStartPayload<Provider extends CloudProvider> = {
 	licenseKey: string | null;
 	storageClass: Provider['storageClass'] | null;
 	isProduction: boolean | null;
+	sampleRate: number;
 };
 
 export type ServerlessPayloads<Provider extends CloudProvider> = {
@@ -189,6 +191,7 @@ export type ServerlessPayloads<Provider extends CloudProvider> = {
 		pixelFormat: PixelFormat | null;
 		proResProfile: _InternalTypes['ProResProfile'] | null;
 		x264Preset: X264Preset | null;
+		gopSize: number | null;
 		jpegQuality: number | undefined;
 		maxRetries: number;
 		privacy: Privacy;
@@ -225,6 +228,7 @@ export type ServerlessPayloads<Provider extends CloudProvider> = {
 		licenseKey: string | null;
 		storageClass: Provider['storageClass'] | null;
 		isProduction: boolean;
+		sampleRate: number;
 	};
 	status: ServerlessStatusPayload<Provider>;
 	renderer: {
@@ -247,6 +251,7 @@ export type ServerlessPayloads<Provider extends CloudProvider> = {
 		crf: number | null;
 		proResProfile: _InternalTypes['ProResProfile'] | null;
 		x264Preset: X264Preset | null;
+		gopSize: number | null;
 		pixelFormat: PixelFormat | null;
 		jpegQuality: number | undefined;
 		envVariables: Record<string, string> | undefined;
@@ -277,6 +282,7 @@ export type ServerlessPayloads<Provider extends CloudProvider> = {
 		progressEveryNthFrame: number;
 		forcePathStyle: boolean;
 		metadata: Record<string, string> | null;
+		sampleRate: number;
 	};
 	still: {
 		type: ServerlessRoutines.still;

@@ -116,13 +116,13 @@ export const getAssetsForMarkup = async (
 					initialCanvasContent={null}
 				>
 					<Internals.RemotionRootContexts
-						visualModeEnabled={false}
 						frameState={null}
 						audioEnabled
 						videoEnabled
 						numberOfAudioTags={0}
 						logLevel="info"
 						audioLatencyHint="interactive"
+						previewSampleRate={null}
 					>
 						<Internals.RenderAssetManagerProvider collectAssets={null}>
 							<Internals.CompositionManager.Provider value={value}>

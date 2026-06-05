@@ -22,6 +22,7 @@ const {
 	offthreadVideoThreadsOption,
 	scaleOption,
 	crfOption,
+	gopSizeOption,
 	jpegQualityOption,
 	videoBitrateOption,
 	enforceAudioOption,
@@ -49,6 +50,7 @@ const {
 	overrideWidthOption,
 	overrideFpsOption,
 	overrideDurationOption,
+	sampleRateOption,
 } = BrowserSafeApis.options;
 
 export const renderCommand = async (
@@ -190,6 +192,7 @@ export const renderCommand = async (
 			offthreadVideoCacheSizeInBytes,
 			binariesDirectory,
 			forceIPv4: false,
+			sampleRate: 48000,
 		});
 
 		const indent = false;
@@ -258,6 +261,7 @@ ${downloadName ? `		Downloaded File = ${downloadName}` : ''}
 		cancelSignal: null,
 		updatesDontOverwrite: false,
 		indent: false,
+		logLevel,
 	});
 
 	const renderProgress: {
@@ -308,6 +312,9 @@ ${downloadName ? `		Downloaded File = ${downloadName}` : ''}
 	const crf = crfOption.getValue({
 		commandLine: CliInternals.parsedCli,
 	}).value;
+	const gopSize = gopSizeOption.getValue({
+		commandLine: CliInternals.parsedCli,
+	}).value;
 	const jpegQuality = jpegQualityOption.getValue({
 		commandLine: CliInternals.parsedCli,
 	}).value;
@@ -335,6 +342,9 @@ ${downloadName ? `		Downloaded File = ${downloadName}` : ''}
 	const metadata = metadataOption.getValue({
 		commandLine: CliInternals.parsedCli,
 	}).value;
+	const sampleRate = sampleRateOption.getValue({
+		commandLine: CliInternals.parsedCli,
+	}).value;
 
 	const res = await internalRenderMediaOnCloudrun({
 		cloudRunUrl,
@@ -356,6 +366,7 @@ ${downloadName ? `		Downloaded File = ${downloadName}` : ''}
 		encodingBufferSize,
 		proResProfile,
 		x264Preset,
+		gopSize,
 		crf,
 		pixelFormat,
 		imageFormat: imageFormat ?? undefined,
@@ -393,6 +404,7 @@ ${downloadName ? `		Downloaded File = ${downloadName}` : ''}
 			: null,
 		offthreadVideoThreads,
 		mediaCacheSizeInBytes,
+		sampleRate,
 	});
 
 	if (res.type === 'crash') {

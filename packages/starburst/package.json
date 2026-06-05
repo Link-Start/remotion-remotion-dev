@@ -1,6 +1,6 @@
 {
 	"name": "@remotion/starburst",
-	"version": "4.0.446",
+	"version": "4.0.472",
 	"description": "Starburst ray effect for Remotion",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
@@ -8,9 +8,9 @@
 	"repository": {
 		"url": "https://github.com/remotion-dev/remotion/tree/main/packages/starburst"
 	},
-	"sideEffects": false,
 	"type": "module",
 	"scripts": {
+		"test": "bun test src/test",
 		"formatting": "oxfmt src --check",
 		"format": "oxfmt src",
 		"lint": "eslint src",

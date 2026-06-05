@@ -188,7 +188,7 @@ export const TrustSection: React.FC = () => {
 					<div className="font-brand">
 						Remotion is profitable. Aside from our{' '}
 						<a
-							href="/investors"
+							href="/docs/investors"
 							className="text-brand hover:underline underline-offset-4"
 						>
 							early investors
@@ -228,7 +228,7 @@ export const TrustSection: React.FC = () => {
 						Succession plan
 					</div>
 					<div className="font-brand">
-						If something happens to us, the project will fall under
+						If something happens to us, the project will fall under{' '}
 						<a
 							href="https://github.com/wcandillon"
 							target="_blank"

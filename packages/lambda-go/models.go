@@ -51,8 +51,10 @@ type RemotionOptions struct {
 	ForceBucketName                string                 `json:"forceBucketName"`
 	Gl                             string                 `json:"gl"`
 	X264Preset                     interface{}            `json:"x264Preset"`
+	GopSize                        *int                   `json:"gopSize"`
 	DeleteAfter                    *string                `json:"deleteAfter"`
 	IsProduction                   *bool                  `json:"isProduction"`
+	SampleRate                     int                    `json:"sampleRate"`
 }
 
 type renderInternalOptions struct {
@@ -109,8 +111,10 @@ type renderInternalOptions struct {
 	ForceBucketName                string                 `json:"forceBucketName,omitempty"`
 	Gl                             *string                `json:"gl,omitempty"`
 	X264Preset                     interface{}            `json:"x264Preset"`
+	GopSize                        interface{}            `json:"gopSize"`
 	DeleteAfter                    *string                `json:"deleteAfter"`
 	IsProduction                   *bool                  `json:"isProduction"`
+	SampleRate                     int                    `json:"sampleRate"`
 }
 
 type RawInvokeResponse struct {

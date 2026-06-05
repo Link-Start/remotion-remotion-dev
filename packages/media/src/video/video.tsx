@@ -1,6 +1,13 @@
-import React from 'react';
-import type {SequenceControls, SequenceSchema} from 'remotion';
-import {Internals, Sequence, useRemotionEnvironment} from 'remotion';
+import React, {useMemo, useState} from 'react';
+import {
+	Internals,
+	Sequence,
+	useRemotionEnvironment,
+	useVideoConfig,
+	type SequenceControls,
+	type SequenceSchema,
+} from 'remotion';
+import {getLoopDisplay} from '../show-in-timeline';
 import type {InnerVideoProps, VideoProps} from './props';
 import {VideoForPreview} from './video-for-preview';
 import {VideoForRendering} from './video-for-rendering';
@@ -16,6 +23,7 @@ const videoSchema = {
 		step: 0.01,
 		default: 1,
 		description: 'Volume',
+		hiddenFromList: false,
 	},
 	playbackRate: {
 		type: 'number',
@@ -23,41 +31,23 @@ const videoSchema = {
 		step: 0.01,
 		default: 1,
 		description: 'Playback Rate',
+		hiddenFromList: false,
+		keyframable: false,
+	},
+	hidden: {
+		type: 'boolean',
+		default: false,
+		description: 'Hidden',
 	},
 	loop: {type: 'boolean', default: false, description: 'Loop'},
-	'style.translate': {
-		type: 'translate',
-		step: 1,
-		default: '0px 0px',
-		description: 'Position',
-	},
-	'style.scale': {
-		type: 'number',
-		min: 0.05,
-		max: 100,
-		step: 0.01,
-		default: 1,
-		description: 'Scale',
-	},
-	'style.rotate': {
-		type: 'rotation',
-		step: 1,
-		default: '0deg',
-		description: 'Rotation',
-	},
-	'style.opacity': {
-		type: 'number',
-		min: 0,
-		max: 1,
-		step: 0.01,
-		default: 1,
-		description: 'Opacity',
-	},
+	...Internals.sequenceVisualStyleSchema,
 } as const satisfies SequenceSchema;
 
 const InnerVideo: React.FC<
 	InnerVideoProps & {
-		readonly controls: SequenceControls | undefined;
+		readonly _experimentalControls: SequenceControls | undefined;
+		readonly setMediaDurationInSeconds: (durationInSeconds: number) => void;
+		readonly refForOutline: React.RefObject<HTMLElement | null>;
 	}
 > = ({
 	src,
@@ -71,7 +61,6 @@ const InnerVideo: React.FC<
 	loop,
 	loopVolumeCurveBehavior,
 	muted,
-	name,
 	onVideoFrame,
 	playbackRate,
 	style,
@@ -82,12 +71,17 @@ const InnerVideo: React.FC<
 	toneFrequency,
 	showInTimeline,
 	debugOverlay,
-	debugAudioScheduling,
 	headless,
 	onError,
 	credentials,
-	controls,
+	requestInit,
+	_experimentalControls: controls,
 	objectFit,
+	_experimentalInitiallyDrawCachedFrame,
+	effects,
+	setMediaDurationInSeconds,
+	refForOutline,
+	...props
 }) => {
 	const environment = useRemotionEnvironment();
 
@@ -118,6 +112,7 @@ const InnerVideo: React.FC<
 	if (environment.isRendering) {
 		return (
 			<VideoForRendering
+				{...props}
 				audioStreamIndex={audioStreamIndex ?? 0}
 				className={className}
 				delayRenderRetries={delayRenderRetries ?? null}
@@ -127,7 +122,6 @@ const InnerVideo: React.FC<
 				disallowFallbackToOffthreadVideo={
 					disallowFallbackToOffthreadVideo ?? false
 				}
-				name={name}
 				fallbackOffthreadVideoProps={fallbackOffthreadVideoProps}
 				logLevel={logLevel}
 				loop={loop}
@@ -145,16 +139,19 @@ const InnerVideo: React.FC<
 				headless={headless}
 				onError={onError}
 				credentials={credentials}
+				requestInit={requestInit}
 				objectFit={objectFit}
+				effects={effects}
 			/>
 		);
 	}
 
 	return (
 		<VideoForPreview
+			{...props}
+			setMediaDurationInSeconds={setMediaDurationInSeconds}
 			audioStreamIndex={audioStreamIndex ?? 0}
 			className={className}
-			name={name}
 			logLevel={logLevel}
 			loop={loop}
 			loopVolumeCurveBehavior={loopVolumeCurveBehavior}
@@ -171,19 +168,24 @@ const InnerVideo: React.FC<
 			disallowFallbackToOffthreadVideo={disallowFallbackToOffthreadVideo}
 			fallbackOffthreadVideoProps={fallbackOffthreadVideoProps}
 			debugOverlay={debugOverlay ?? false}
-			debugAudioScheduling={debugAudioScheduling ?? false}
 			headless={headless ?? false}
 			onError={onError}
 			credentials={credentials}
+			requestInit={requestInit}
 			controls={controls}
 			objectFit={objectFit}
+			effects={effects}
+			_experimentalInitiallyDrawCachedFrame={
+				_experimentalInitiallyDrawCachedFrame
+			}
+			refForOutline={refForOutline}
 		/>
 	);
 };
 
 const VideoInner: React.FC<
 	VideoProps & {
-		readonly controls: SequenceControls | undefined;
+		readonly _experimentalControls: SequenceControls | undefined;
 	}
 > = ({
 	src,
@@ -208,24 +210,112 @@ const VideoInner: React.FC<
 	stack,
 	toneFrequency,
 	debugOverlay,
-	debugAudioScheduling,
 	headless,
 	onError,
 	credentials,
-	controls,
+	requestInit,
+	_experimentalControls: controls,
 	objectFit,
-	from,
+	_experimentalInitiallyDrawCachedFrame,
+	effects,
 	durationInFrames,
+	from,
+	hidden,
+	...props
 }) => {
 	const fallbackLogLevel = Internals.useLogLevel();
+	const [mediaVolume] = Internals.useMediaVolumeState();
+	const mediaStartsAt = Internals.useMediaStartsAt();
+	const videoConfig = useVideoConfig();
+	const sequenceDurationInFrames = Math.min(
+		durationInFrames ?? Infinity,
+		Math.max(0, videoConfig.durationInFrames - (from ?? 0)),
+	);
+
+	const basicInfo = Internals.useBasicMediaInTimeline({
+		src,
+		volume,
+		playbackRate: playbackRate ?? 1,
+		trimBefore,
+		trimAfter,
+		sequenceDurationInFrames,
+		mediaType: 'video',
+		displayName: name ?? '<Video>',
+		mediaVolume,
+		mediaStartsAt,
+		loop: loop ?? false,
+	});
+
+	// TODO: Redundant with what we do in the Studio
+	const [mediaDurationInSeconds, setMediaDurationInSeconds] = useState<
+		number | null
+	>(null);
+
+	const loopDisplay = useMemo(
+		() =>
+			getLoopDisplay({
+				loop: loop ?? false,
+				mediaDurationInSeconds,
+				playbackRate: playbackRate ?? 1,
+				trimAfter,
+				trimBefore,
+				sequenceDurationInFrames,
+				compFps: videoConfig.fps,
+			}),
+		[
+			loop,
+			mediaDurationInSeconds,
+			playbackRate,
+			trimAfter,
+			trimBefore,
+			sequenceDurationInFrames,
+			videoConfig.fps,
+		],
+	);
+
+	const isMedia = useMemo(
+		() => ({
+			type: 'video' as const,
+			data: basicInfo,
+		}),
+		[basicInfo],
+	);
+
+	const memoizedEffects = Internals.useMemoizedEffects({
+		effects: effects ?? [],
+		overrideId: controls?.overrideId ?? null,
+	});
+	const memoizedEffectDefinitions = Internals.useMemoizedEffectDefinitions(
+		effects ?? [],
+	);
+	const refForOutline = React.useRef<HTMLElement | null>(null);
+
+	if (sequenceDurationInFrames === 0) {
+		return null;
+	}
+
 	return (
 		<Sequence
 			layout="none"
 			from={from ?? 0}
-			durationInFrames={durationInFrames ?? Infinity}
-			showInTimeline={false}
+			durationInFrames={basicInfo.duration}
+			_remotionInternalStack={stack}
+			_remotionInternalIsMedia={isMedia}
+			name={name ?? '<Video>'}
+			_remotionInternalDocumentationLink={
+				name === undefined
+					? 'https://www.remotion.dev/docs/media/video'
+					: undefined
+			}
+			_experimentalControls={controls}
+			_remotionInternalLoopDisplay={loopDisplay}
+			_remotionInternalEffects={memoizedEffectDefinitions}
+			_remotionInternalRefForOutline={refForOutline}
+			showInTimeline={showInTimeline ?? true}
+			hidden={hidden}
 		>
 			<InnerVideo
+				{...props}
 				audioStreamIndex={audioStreamIndex ?? 0}
 				className={className}
 				delayRenderRetries={delayRenderRetries ?? null}
@@ -240,7 +330,6 @@ const VideoInner: React.FC<
 				loop={loop ?? false}
 				loopVolumeCurveBehavior={loopVolumeCurveBehavior ?? 'repeat'}
 				muted={muted ?? false}
-				name={name}
 				onVideoFrame={onVideoFrame}
 				playbackRate={playbackRate ?? 1}
 				showInTimeline={showInTimeline ?? true}
@@ -252,17 +341,27 @@ const VideoInner: React.FC<
 				toneFrequency={toneFrequency ?? 1}
 				stack={stack}
 				debugOverlay={debugOverlay ?? false}
-				debugAudioScheduling={debugAudioScheduling ?? false}
 				headless={headless ?? false}
 				onError={onError}
 				credentials={credentials}
-				controls={controls}
+				requestInit={requestInit}
+				_experimentalControls={controls}
 				objectFit={objectFit ?? 'contain'}
+				_experimentalInitiallyDrawCachedFrame={
+					_experimentalInitiallyDrawCachedFrame ?? false
+				}
+				effects={memoizedEffects}
+				setMediaDurationInSeconds={setMediaDurationInSeconds}
+				refForOutline={refForOutline}
 			/>
 		</Sequence>
 	);
 };
 
-export const Video = Internals.wrapInSchema(VideoInner, videoSchema);
+export const Video = Internals.wrapInSchema({
+	Component: VideoInner,
+	schema: videoSchema,
+	supportsEffects: true,
+});
 
 Internals.addSequenceStackTraces(Video);

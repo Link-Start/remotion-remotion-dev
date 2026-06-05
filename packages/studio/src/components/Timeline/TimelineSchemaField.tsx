@@ -1,134 +1,89 @@
 import React from 'react';
-import type {CanUpdateSequencePropStatus} from 'remotion';
-import type {SchemaFieldInfo} from '../../helpers/timeline-layout';
-import {TimelineBooleanField} from './TimelineBooleanField';
-import {TimelineNumberField} from './TimelineNumberField';
-import {TimelineRotationField} from './TimelineRotationField';
-import {TimelineTranslateField} from './TimelineTranslateField';
+import type {
+	CanUpdateSequencePropStatusFalse,
+	CanUpdateSequencePropStatusStatic,
+	SequencePropsSubscriptionKey,
+} from 'remotion';
+import type {
+	SchemaFieldInfo,
+	TimelineFieldOnDragValueChange,
+	TimelineFieldOnSave,
+} from '../../helpers/timeline-layout';
+import {getComputedStatusLabel} from './get-timeline-keyframes';
+import {TimelineArrayField} from './TimelineArrayField';
+import {
+	isTimelinePrimitiveFieldInfo,
+	TimelinePrimitiveFieldValue,
+} from './TimelinePrimitiveFieldValue';
 
 const unsupportedLabel: React.CSSProperties = {
 	color: 'rgba(255, 255, 255, 0.4)',
 	fontSize: 12,
 	fontStyle: 'italic',
+	userSelect: 'none',
+	WebkitUserSelect: 'none',
 };
 
-const notEditableBackground: React.CSSProperties = {
-	backgroundColor: 'rgba(255, 0, 0, 0.2)',
-	borderRadius: 3,
-	padding: '0 4px',
+export const UnsupportedStatus: React.FC<{
+	readonly label: string;
+}> = ({label}) => {
+	return <span style={unsupportedLabel}>{label}</span>;
+};
+
+export const TimelineNonEditableStatus: React.FC<{
+	readonly propStatus: CanUpdateSequencePropStatusFalse;
+}> = ({propStatus}) => {
+	if (propStatus.status === 'computed') {
+		return (
+			<span style={unsupportedLabel}>{getComputedStatusLabel(propStatus)}</span>
+		);
+	}
 };
 
 export const TimelineFieldValue: React.FC<{
 	readonly field: SchemaFieldInfo;
-	readonly onSave: (key: string, value: unknown) => Promise<void>;
-	readonly onDragValueChange: (key: string, value: unknown) => void;
+	readonly onSave: TimelineFieldOnSave;
+	readonly onDragValueChange: TimelineFieldOnDragValueChange;
 	readonly onDragEnd: () => void;
-	readonly canUpdate: boolean;
-	readonly propStatus: CanUpdateSequencePropStatus | null;
-	readonly codeValue: unknown;
+	readonly propStatus: CanUpdateSequencePropStatusStatic;
 	readonly effectiveValue: unknown;
+	readonly scaleLockNodePath: SequencePropsSubscriptionKey | null;
 }> = ({
 	field,
 	onSave,
 	onDragValueChange,
 	onDragEnd,
 	propStatus,
-	canUpdate,
 	effectiveValue,
-	codeValue,
+	scaleLockNodePath,
 }) => {
-	const wrapperStyle: React.CSSProperties | undefined =
-		canUpdate === null || canUpdate === false
-			? notEditableBackground
-			: undefined;
-
-	if (!field.supported) {
-		return <span style={unsupportedLabel}>unsupported</span>;
-	}
-
-	if (propStatus !== null && !propStatus.canUpdate) {
-		if (propStatus.reason === 'computed') {
-			return <span style={unsupportedLabel}>computed</span>;
-		}
-
-		throw new Error(
-			`Unsupported prop status: ${propStatus.reason satisfies never}`,
+	if (isTimelinePrimitiveFieldInfo(field)) {
+		return (
+			<TimelinePrimitiveFieldValue
+				effectiveValue={effectiveValue}
+				field={field}
+				onDragEnd={onDragEnd}
+				onDragValueChange={onDragValueChange}
+				onSave={onSave}
+				propStatus={propStatus}
+				scaleLockNodePath={scaleLockNodePath}
+			/>
 		);
 	}
 
-	if (propStatus === null) {
+	if (field.typeName === 'array') {
 		return (
-			<span style={notEditableBackground}>
-				<span style={unsupportedLabel}>error</span>
-			</span>
-		);
-	}
-
-	if (field.typeName === 'number') {
-		return (
-			<span style={wrapperStyle}>
-				<TimelineNumberField
-					field={field}
+			<span>
+				<TimelineArrayField
 					effectiveValue={effectiveValue}
-					canUpdate={canUpdate}
-					onSave={onSave}
-					codeValue={codeValue}
-					onDragValueChange={onDragValueChange}
+					field={field}
 					onDragEnd={onDragEnd}
-				/>
-			</span>
-		);
-	}
-
-	if (field.typeName === 'rotation') {
-		return (
-			<span style={wrapperStyle}>
-				<TimelineRotationField
-					field={field}
-					effectiveValue={effectiveValue}
-					codeValue={codeValue}
-					canUpdate={canUpdate}
-					onSave={onSave}
 					onDragValueChange={onDragValueChange}
-					onDragEnd={onDragEnd}
-				/>
-			</span>
-		);
-	}
-
-	if (field.typeName === 'translate') {
-		return (
-			<span style={wrapperStyle}>
-				<TimelineTranslateField
-					field={field}
-					effectiveValue={effectiveValue}
-					codeValue={codeValue}
-					canUpdate={canUpdate}
 					onSave={onSave}
-					onDragValueChange={onDragValueChange}
-					onDragEnd={onDragEnd}
 				/>
 			</span>
 		);
 	}
 
-	if (field.typeName === 'boolean') {
-		return (
-			<span style={wrapperStyle}>
-				<TimelineBooleanField
-					field={field}
-					codeValue={codeValue}
-					canUpdate={canUpdate}
-					onSave={onSave}
-					effectiveValue={effectiveValue}
-				/>
-			</span>
-		);
-	}
-
-	return (
-		<span style={{...unsupportedLabel, fontStyle: 'normal'}}>
-			{String(effectiveValue)}
-		</span>
-	);
+	throw new Error(`Unsupported field type: ${field.typeName}`);
 };

@@ -35,7 +35,7 @@ Inline JSON string isn't supported on Windows shells because it removes the `"` 
 
 ### `--log`
 
-[Set the log level](/docs/config#setlevel). Increase or decrease the amount of output. Acceptable values: `error`, `warn`, `info` (_default_), `verbose`
+[Set the log level](/docs/config#setloglevel). Increase or decrease the amount of output. Acceptable values: `error`, `warn`, `info` (_default_), `verbose`
 
 ### `--port`
 
@@ -109,6 +109,14 @@ npx remotion studio --ipv4
 
 ```sh
 npx remotion studio --number-of-shared-audio-tags=5
+```
+
+### `--preview-sample-rate`
+
+<Options id="preview-sample-rate" />
+
+```sh
+npx remotion studio --preview-sample-rate=44100
 ```
 
 ### `--cross-site-isolation`<AvailableFrom v="4.0.364" />

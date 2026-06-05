@@ -76,6 +76,7 @@ test(
 				encodingBufferSize: null,
 				webhook: null,
 				x264Preset: null,
+				gopSize: null,
 				inputProps: {},
 				preferLossless: false,
 				indent: false,
@@ -88,6 +89,7 @@ test(
 				requestHandler: null,
 				mediaCacheSizeInBytes: null,
 				isProduction: null,
+				sampleRate: 48000,
 			});
 
 		expect(removeUndefined(parsed)).toEqual(removeUndefined(nativeVersion));

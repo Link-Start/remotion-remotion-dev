@@ -1,114 +1,129 @@
-import React, {useContext, useMemo} from 'react';
+import React, {useCallback, useContext, useMemo} from 'react';
 import type {TSequence} from 'remotion';
 import {Internals, useCurrentFrame} from 'remotion';
 import {BLUE} from '../../helpers/colors';
 import {
-	SEQUENCE_BORDER_WIDTH,
 	getTimelineSequenceLayout,
+	SEQUENCE_BORDER_WIDTH,
 } from '../../helpers/get-timeline-sequence-layout';
-import {getTimelineLayerHeight} from '../../helpers/timeline-layout';
+import type {SequenceNodePathInfo} from '../../helpers/get-timeline-sequence-sort-key';
+import {
+	getTimelineLayerHeight,
+	TIMELINE_LAYER_HEIGHT_AUDIO,
+} from '../../helpers/timeline-layout';
 import {useMaxMediaDuration} from '../../helpers/use-max-media-duration';
 import {AudioWaveform} from '../AudioWaveform';
 import {LoopedTimelineIndicator} from './LoopedTimelineIndicators';
 import {TimelineImageInfo} from './TimelineImageInfo';
+import {TIMELINE_TOP_DRAG, useTimelineRowSelection} from './TimelineSelection';
 import {TimelineSequenceFrame} from './TimelineSequenceFrame';
+import {
+	TimelineSequenceRightEdgeDragHandle,
+	useTimelineSequenceFromDrag,
+} from './TimelineSequenceRightEdgeDragHandle';
 import {TimelineVideoInfo} from './TimelineVideoInfo';
 import {TimelineWidthContext} from './TimelineWidthProvider';
+import {useResolveStackAndReactToChange} from './use-resolved-stack-react-to-change';
 
 const AUDIO_GRADIENT = 'linear-gradient(rgb(16 171 58), rgb(43 165 63) 60%)';
 const VIDEO_GRADIENT = 'linear-gradient(to top, #8e44ad, #9b59b6)';
 const IMAGE_GRADIENT = 'linear-gradient(to top, #2980b9, #3498db)';
 
-export const TimelineSequence: React.FC<{
+const TimelineSequenceFn: React.FC<{
 	readonly s: TSequence;
-}> = ({s}) => {
+	readonly nodePathInfo: SequenceNodePathInfo | null;
+	readonly sequenceFrameOffset: number;
+}> = ({s, nodePathInfo, sequenceFrameOffset}) => {
 	const windowWidth = useContext(TimelineWidthContext);
 
 	if (windowWidth === null) {
 		return null;
 	}
 
-	return <Inner windowWidth={windowWidth} s={s} />;
+	return (
+		<TimelineSequenceInner
+			windowWidth={windowWidth}
+			s={s}
+			nodePathInfo={nodePathInfo}
+			sequenceFrameOffset={sequenceFrameOffset}
+		/>
+	);
 };
 
-const Inner: React.FC<{
+const TimelineSequenceCurrentFrame: React.FC<{
 	readonly s: TSequence;
-	readonly windowWidth: number;
-}> = ({s, windowWidth}) => {
-	// If a duration is 1, it is essentially a still and it should have width 0
-	// Some compositions may not be longer than their media duration,
-	// if that is the case, it needs to be asynchronously determined
+	readonly displayDurationInFrames: number;
+	readonly premountWidth: number | null;
+	readonly postmountWidth: number | null;
+	readonly style: React.CSSProperties;
+	readonly children: React.ReactNode;
+	readonly nodePathInfo: SequenceNodePathInfo | null;
+	readonly sequenceFrameOffset: number;
+	readonly fromCanUpdate: boolean;
+	readonly onMoveDragPointerDown: (
+		e: React.PointerEvent<HTMLDivElement>,
+	) => void;
+}> = ({
+	s,
+	displayDurationInFrames,
+	premountWidth,
+	postmountWidth,
+	style,
+	children,
+	nodePathInfo,
+	sequenceFrameOffset,
+	fromCanUpdate,
+	onMoveDragPointerDown,
+}) => {
+	const {onSelect, selectable} = useTimelineRowSelection(nodePathInfo);
 
-	const video = Internals.useVideo();
-
-	const maxMediaDuration = useMaxMediaDuration(s, video?.fps ?? 30);
-
-	if (!video) {
-		throw new TypeError('Expected video config');
-	}
-
+	const onPointerDown = useCallback(
+		(e: React.PointerEvent<HTMLDivElement>) => {
+			if (e.button === 0) {
+				e.stopPropagation();
+				onSelect({
+					shiftKey: e.shiftKey,
+					toggleKey: e.metaKey || e.ctrlKey,
+				});
+				if (TIMELINE_TOP_DRAG && fromCanUpdate) {
+					onMoveDragPointerDown(e);
+				}
+			}
+		},
+		[fromCanUpdate, onMoveDragPointerDown, onSelect],
+	);
 	const frame = useCurrentFrame();
 	const relativeFrame = frame - s.from;
+	const sequenceFrame = relativeFrame + sequenceFrameOffset;
 	const relativeFrameWithPremount = relativeFrame + (s.premountDisplay ?? 0);
-	const relativeFrameWithPostmount = relativeFrame - s.duration;
+	const relativeFrameWithPostmount = relativeFrame - displayDurationInFrames;
 
-	const roundedFrame = Math.round(relativeFrame * 100) / 100;
+	const roundedFrame = Math.round(sequenceFrame * 100) / 100;
 
-	const isInRange = relativeFrame >= 0 && relativeFrame < s.duration;
+	const isInRange =
+		relativeFrame >= 0 && relativeFrame < displayDurationInFrames;
 	const isPremounting =
 		relativeFrameWithPremount >= 0 &&
-		relativeFrameWithPremount < s.duration &&
+		relativeFrameWithPremount < displayDurationInFrames &&
 		!isInRange;
 	const isPostmounting =
 		relativeFrameWithPostmount >= 0 &&
 		relativeFrameWithPostmount < (s.postmountDisplay ?? 0) &&
 		!isInRange;
 
-	const {marginLeft, width, naturalWidth, premountWidth, postmountWidth} =
-		useMemo(() => {
-			return getTimelineSequenceLayout({
-				durationInFrames: s.loopDisplay
-					? s.loopDisplay.durationInFrames * s.loopDisplay.numberOfTimes
-					: s.duration,
-				startFrom: s.loopDisplay ? s.from + s.loopDisplay.startOffset : s.from,
-				startFromMedia:
-					s.type === 'sequence' || s.type === 'image' ? 0 : s.startMediaFrom,
-				maxMediaDuration,
-				video,
-				windowWidth,
-				premountDisplay: s.premountDisplay,
-				postmountDisplay: s.postmountDisplay,
-			});
-		}, [maxMediaDuration, s, video, windowWidth]);
-
-	const style: React.CSSProperties = useMemo(() => {
+	const actualStyle: React.CSSProperties = useMemo(() => {
 		return {
-			background:
-				s.type === 'audio'
-					? AUDIO_GRADIENT
-					: s.type === 'video'
-						? VIDEO_GRADIENT
-						: s.type === 'image'
-							? IMAGE_GRADIENT
-							: BLUE,
-			border: SEQUENCE_BORDER_WIDTH + 'px solid rgba(255, 255, 255, 0.2)',
-			borderRadius: 2,
-			position: 'absolute',
-			height: getTimelineLayerHeight(s.type),
-			marginLeft,
-			width,
-			color: 'white',
-			overflow: 'hidden',
+			...style,
 			opacity: isInRange ? 1 : 0.5,
 		};
-	}, [isInRange, marginLeft, s.type, width]);
-
-	if (maxMediaDuration === null) {
-		return null;
-	}
+	}, [isInRange, style]);
 
 	return (
-		<div key={s.id} style={style} title={s.displayName}>
+		<div
+			style={actualStyle}
+			title={s.displayName}
+			onPointerDown={selectable ? onPointerDown : undefined}
+		>
 			{premountWidth ? (
 				<div
 					style={{
@@ -144,37 +159,7 @@ const Inner: React.FC<{
 				/>
 			) : null}
 
-			{s.type === 'audio' ? (
-				<AudioWaveform
-					src={s.src}
-					doesVolumeChange={s.doesVolumeChange}
-					visualizationWidth={width}
-					startFrom={s.startMediaFrom}
-					durationInFrames={s.duration}
-					volume={s.volume}
-					playbackRate={s.playbackRate}
-				/>
-			) : null}
-			{s.type === 'video' ? (
-				<TimelineVideoInfo
-					src={s.src}
-					visualizationWidth={width}
-					naturalWidth={naturalWidth}
-					trimBefore={s.startMediaFrom}
-					durationInFrames={s.duration}
-					playbackRate={s.playbackRate}
-					volume={s.volume}
-					doesVolumeChange={s.doesVolumeChange}
-					premountWidth={premountWidth ?? 0}
-					postmountWidth={postmountWidth ?? 0}
-				/>
-			) : null}
-			{s.type === 'image' ? (
-				<TimelineImageInfo src={s.src} visualizationWidth={width} />
-			) : null}
-			{s.loopDisplay === undefined ? null : (
-				<LoopedTimelineIndicator loops={s.loopDisplay.numberOfTimes} />
-			)}
+			{children}
 
 			{s.type !== 'audio' &&
 			s.type !== 'video' &&
@@ -199,3 +184,177 @@ const Inner: React.FC<{
 		</div>
 	);
 };
+
+const TimelineSequenceInner: React.FC<{
+	readonly s: TSequence;
+	readonly windowWidth: number;
+	readonly nodePathInfo: SequenceNodePathInfo | null;
+	readonly sequenceFrameOffset: number;
+}> = ({s, windowWidth, nodePathInfo, sequenceFrameOffset}) => {
+	// If a duration is 1, it is essentially a still and it should have width 0
+	// Some compositions may not be longer than their media duration,
+	// if that is the case, it needs to be asynchronously determined
+
+	const video = Internals.useVideo();
+
+	const maxMediaDuration = useMaxMediaDuration(s, video?.fps ?? 30);
+	const effectiveMaxMediaDuration = s.loopDisplay ? null : maxMediaDuration;
+
+	const originalLocation = useResolveStackAndReactToChange(s.getStack);
+	const validatedLocation = useMemo(() => {
+		if (
+			!originalLocation ||
+			!originalLocation.source ||
+			!originalLocation.line
+		) {
+			return null;
+		}
+
+		return {
+			source: originalLocation.source,
+			line: originalLocation.line,
+			column: originalLocation.column ?? 0,
+		};
+	}, [originalLocation]);
+
+	const {codeValues} = useContext(Internals.VisualModeCodeValuesContext);
+	const nodePath = nodePathInfo?.sequenceSubscriptionKey ?? null;
+	const codeValuesForOverride = useMemo(() => {
+		return nodePath
+			? Internals.getCodeValuesCtx(codeValues, nodePath)
+			: undefined;
+	}, [codeValues, nodePath]);
+	const durationCanUpdate = Boolean(
+		codeValuesForOverride?.durationInFrames?.status === 'static',
+	);
+	const fromCanUpdate = Boolean(
+		codeValuesForOverride?.from?.status === 'static',
+	);
+
+	const {onPointerDown: onMoveDragPointerDown} = useTimelineSequenceFromDrag({
+		nodePathInfo,
+		windowWidth,
+		timelineDurationInFrames: video?.durationInFrames ?? 1,
+	});
+
+	if (!video) {
+		throw new TypeError('Expected video config');
+	}
+
+	const displayDurationInFrames = s.loopDisplay
+		? s.loopDisplay.durationInFrames * s.loopDisplay.numberOfTimes
+		: s.duration;
+
+	const {marginLeft, width, naturalWidth, premountWidth, postmountWidth} =
+		useMemo(() => {
+			return getTimelineSequenceLayout({
+				durationInFrames: displayDurationInFrames,
+				startFrom: s.loopDisplay ? s.from + s.loopDisplay.startOffset : s.from,
+				startFromMedia:
+					s.type === 'sequence' || s.type === 'image' ? 0 : s.startMediaFrom,
+				maxMediaDuration: effectiveMaxMediaDuration,
+				video,
+				windowWidth,
+				premountDisplay: s.premountDisplay,
+				postmountDisplay: s.postmountDisplay,
+			});
+		}, [
+			displayDurationInFrames,
+			effectiveMaxMediaDuration,
+			s,
+			video,
+			windowWidth,
+		]);
+
+	const style: React.CSSProperties = useMemo(() => {
+		return {
+			background:
+				s.type === 'audio'
+					? AUDIO_GRADIENT
+					: s.type === 'video'
+						? VIDEO_GRADIENT
+						: s.type === 'image'
+							? IMAGE_GRADIENT
+							: BLUE,
+			border: SEQUENCE_BORDER_WIDTH + 'px solid rgba(255, 255, 255, 0.2)',
+			borderRadius: 2,
+			position: 'absolute',
+			height: getTimelineLayerHeight(s.type),
+			marginLeft,
+			width,
+			color: 'white',
+			overflow: 'hidden',
+		};
+	}, [marginLeft, s.type, width]);
+
+	const showRightEdgeDragHandle =
+		TIMELINE_TOP_DRAG &&
+		(s.type === 'sequence' || s.type === 'image') &&
+		!s.loopDisplay &&
+		!s.isInsideSeries &&
+		nodePath !== null &&
+		validatedLocation !== null &&
+		durationCanUpdate;
+
+	if (maxMediaDuration === null && !s.loopDisplay) {
+		return null;
+	}
+
+	return (
+		<TimelineSequenceCurrentFrame
+			s={s}
+			displayDurationInFrames={displayDurationInFrames}
+			premountWidth={premountWidth}
+			postmountWidth={postmountWidth}
+			style={style}
+			nodePathInfo={nodePathInfo}
+			sequenceFrameOffset={sequenceFrameOffset}
+			fromCanUpdate={fromCanUpdate}
+			onMoveDragPointerDown={onMoveDragPointerDown}
+		>
+			{s.type === 'audio' ? (
+				<AudioWaveform
+					src={s.src}
+					height={TIMELINE_LAYER_HEIGHT_AUDIO}
+					doesVolumeChange={s.doesVolumeChange}
+					visualizationWidth={width}
+					startFrom={s.startMediaFrom}
+					durationInFrames={s.duration}
+					volume={s.volume}
+					playbackRate={s.playbackRate}
+					loopDisplay={s.loopDisplay}
+				/>
+			) : null}
+			{s.type === 'video' ? (
+				<TimelineVideoInfo
+					src={s.src}
+					visualizationWidth={width}
+					naturalWidth={naturalWidth}
+					trimBefore={s.startMediaFrom}
+					durationInFrames={s.duration}
+					playbackRate={s.playbackRate}
+					volume={s.volume}
+					doesVolumeChange={s.doesVolumeChange}
+					premountWidth={premountWidth ?? 0}
+					postmountWidth={postmountWidth ?? 0}
+					loopDisplay={s.loopDisplay}
+				/>
+			) : null}
+			{s.type === 'image' ? (
+				<TimelineImageInfo src={s.src} visualizationWidth={width} />
+			) : null}
+			{s.loopDisplay === undefined ? null : (
+				<LoopedTimelineIndicator loops={s.loopDisplay.numberOfTimes} />
+			)}
+			{showRightEdgeDragHandle && nodePathInfo && validatedLocation ? (
+				<TimelineSequenceRightEdgeDragHandle
+					nodePathInfo={nodePathInfo}
+					windowWidth={windowWidth}
+					timelineDurationInFrames={video.durationInFrames ?? 1}
+				/>
+			) : null}
+		</TimelineSequenceCurrentFrame>
+	);
+};
+
+export const TimelineSequence = React.memo(TimelineSequenceFn);

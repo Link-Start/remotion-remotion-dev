@@ -8,12 +8,14 @@ import React, {
 	useState,
 } from 'react';
 import {type _InternalTypes} from 'remotion';
+import {StudioServerConnectionCtx} from '../helpers/client-id';
 import {
 	BACKGROUND,
 	LIGHT_TEXT,
 	getBackgroundFromHoverState,
 } from '../helpers/colors';
 import {isCompositionStill} from '../helpers/is-composition-still';
+import {noop} from '../helpers/noop';
 import {
 	markCompositionSidebarScrollFromRowClick,
 	maybeScrollCompositionSidebarRowIntoView,
@@ -22,12 +24,14 @@ import {CollapsedFolderIcon, ExpandedFolderIcon} from '../icons/folder';
 import {StillIcon} from '../icons/still';
 import {FilmIcon} from '../icons/video';
 import {ModalsContext} from '../state/modals';
+import {getCompositionMenuItems} from './composition-menu-items';
 import {CompositionContextButton} from './CompositionContextButton';
 import {ContextMenu} from './ContextMenu';
+import {getFolderMenuItems} from './folder-menu-items';
 import {Row, Spacing} from './layout';
 import type {ComboboxValue} from './NewComposition/ComboBox';
-import {showNotification} from './Notifications/NotificationCenter';
 import {SidebarRenderButton} from './SidebarRenderButton';
+import {useResolvedStack} from './Timeline/use-resolved-stack';
 
 const COMPOSITION_ITEM_HEIGHT = 32;
 
@@ -75,6 +79,7 @@ export type CompositionSelectorItemType =
 	| {
 			key: string;
 			type: 'folder';
+			folder: _InternalTypes['TFolder'];
 			folderName: string;
 			parentName: string | null;
 			items: CompositionSelectorItemType[];
@@ -171,121 +176,69 @@ export const CompositionSelectorItem: React.FC<{
 	);
 
 	const {setSelectedModal} = useContext(ModalsContext);
+	const connectionStatus = useContext(StudioServerConnectionCtx)
+		.previewServerState.type;
+	const resolvedLocation = useResolvedStack(
+		item.type === 'composition' ? item.composition.stack : item.folder.stack,
+	);
 
 	const contextMenu = useMemo((): ComboboxValue[] => {
 		if (item.type === 'composition') {
-			return [
-				{
-					id: 'duplicate',
-					keyHint: null,
-					label: `Duplicate...`,
-					leftItem: null,
-					onClick: () => {
-						setSelectedModal({
-							type: 'duplicate-comp',
-							compositionId: item.composition.id,
-							compositionType:
-								item.composition.durationInFrames === 1
-									? 'still'
-									: 'composition',
-						});
-					},
-					quickSwitcherLabel: null,
-					subMenu: null,
-					type: 'item',
-					value: 'duplicate',
-				},
-				{
-					id: 'rename',
-					keyHint: null,
-					label: `Rename...`,
-					leftItem: null,
-					onClick: () => {
-						setSelectedModal({
-							type: 'rename-comp',
-							compositionId: item.composition.id,
-						});
-					},
-					quickSwitcherLabel: null,
-					subMenu: null,
-					type: 'item',
-					value: 'rename',
-				},
-				{
-					id: 'delete',
-					keyHint: null,
-					label: `Delete...`,
-					leftItem: null,
-					onClick: () => {
-						setSelectedModal({
-							type: 'delete-comp',
-							compositionId: item.composition.id,
-						});
-					},
-					quickSwitcherLabel: null,
-					subMenu: null,
-					type: 'item',
-					value: 'delete',
-				},
-				{
-					type: 'divider',
-					id: 'copy-id-divider',
-				},
-				{
-					id: 'copy-id',
-					keyHint: null,
-					label: `Copy ID`,
-					leftItem: null,
-					onClick: () => {
-						navigator.clipboard
-							.writeText(item.composition.id)
-							.catch((err) => {
-								showNotification(
-									`Could not copy to clipboard: ${err.message}`,
-									1000,
-								);
-							})
-							.then(() => {
-								showNotification('Copied to clipboard', 1000);
-							});
-					},
-					quickSwitcherLabel: null,
-					subMenu: null,
-					type: 'item',
-					value: 'remove',
-				},
-			];
+			return getCompositionMenuItems({
+				closeMenu: noop,
+				composition: item.composition,
+				connectionStatus,
+				resolvedLocation,
+				setSelectedModal,
+				readOnlyStudio: window.remotion_isReadOnlyStudio,
+			});
 		}
 
-		return [];
-	}, [item, setSelectedModal]);
+		return getFolderMenuItems({
+			closeMenu: noop,
+			connectionStatus,
+			folder: item.folder,
+			resolvedLocation,
+			setSelectedModal,
+			readOnlyStudio: window.remotion_isReadOnlyStudio,
+		});
+	}, [connectionStatus, item, resolvedLocation, setSelectedModal]);
 
 	if (item.type === 'folder') {
 		return (
 			<>
-				<button
-					style={style}
-					onPointerEnter={onPointerEnter}
-					onPointerLeave={onPointerLeave}
-					tabIndex={tabIndex}
-					onClick={onClick}
-					type="button"
-					title={item.folderName}
-				>
-					{item.expanded ? (
-						<ExpandedFolderIcon
-							style={iconStyle}
-							color={hovered || selected ? 'white' : LIGHT_TEXT}
-						/>
-					) : (
-						<CollapsedFolderIcon
-							color={hovered || selected ? 'white' : LIGHT_TEXT}
-							style={iconStyle}
-						/>
-					)}
-					<Spacing x={1} />
-					<div style={label}>{item.folderName}</div>
-				</button>
+				<ContextMenu values={contextMenu} onOpen={null}>
+					<Row align="center">
+						<button
+							style={style}
+							onPointerEnter={onPointerEnter}
+							onPointerLeave={onPointerLeave}
+							tabIndex={tabIndex}
+							onClick={onClick}
+							type="button"
+							title={item.folderName}
+						>
+							{item.expanded ? (
+								<ExpandedFolderIcon
+									style={iconStyle}
+									color={hovered || selected ? 'white' : LIGHT_TEXT}
+								/>
+							) : (
+								<CollapsedFolderIcon
+									color={hovered || selected ? 'white' : LIGHT_TEXT}
+									style={iconStyle}
+								/>
+							)}
+							<Spacing x={1} />
+							<div style={label}>{item.folderName}</div>
+							<Spacing x={0.5} />
+							<CompositionContextButton
+								values={contextMenu}
+								visible={hovered}
+							/>
+						</button>
+					</Row>
+				</ContextMenu>
 				{item.expanded
 					? item.items.map((childItem) => {
 							return (
@@ -306,7 +259,7 @@ export const CompositionSelectorItem: React.FC<{
 	}
 
 	return (
-		<ContextMenu values={contextMenu}>
+		<ContextMenu values={contextMenu} onOpen={null}>
 			<Row align="center">
 				<a
 					ref={compositionRowRef}

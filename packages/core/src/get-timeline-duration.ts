@@ -6,13 +6,19 @@ export const getTimelineDuration = ({
 	trimBefore,
 	trimAfter,
 	parentSequenceDurationInFrames,
+	loop,
 }: {
 	compositionDurationInFrames: number;
 	playbackRate: number;
 	trimBefore: number | undefined;
 	trimAfter: number | undefined;
 	parentSequenceDurationInFrames: number | null;
+	loop: boolean;
 }) => {
+	if (loop) {
+		return compositionDurationInFrames;
+	}
+
 	const mediaDuration = calculateMediaDuration({
 		mediaDurationInFrames:
 			compositionDurationInFrames * playbackRate + (trimBefore ?? 0),
@@ -22,9 +28,11 @@ export const getTimelineDuration = ({
 	});
 
 	if (parentSequenceDurationInFrames !== null) {
-		return Math.floor(
-			Math.min(parentSequenceDurationInFrames * playbackRate, mediaDuration),
+		const cappedDuration = Math.min(
+			parentSequenceDurationInFrames * playbackRate,
+			mediaDuration,
 		);
+		return Number(cappedDuration.toFixed(10));
 	}
 
 	return mediaDuration;

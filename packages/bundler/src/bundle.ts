@@ -4,7 +4,7 @@ import path from 'node:path';
 import {promisify} from 'node:util';
 import {isMainThread} from 'node:worker_threads';
 import type {GitSource, RenderDefaults} from '@remotion/studio-shared';
-import {getProjectName, SOURCE_MAP_ENDPOINT} from '@remotion/studio-shared';
+import {getProjectName} from '@remotion/studio-shared';
 import webpack from 'webpack';
 import {copyDir} from './copy-dir';
 import {indexHtml} from './index-html';
@@ -72,6 +72,13 @@ export type MandatoryLegacyBundleOptions = {
 	keyboardShortcutsEnabled: boolean;
 	askAIEnabled: boolean;
 	rspack: boolean;
+	/**
+	 * If true, the public directory is symlinked into the bundle output instead of copied.
+	 * Safe for throwaway bundles (e.g. CLI render where the output folder is deleted after);
+	 * do not use when the bundle must be self-contained for deployment.
+	 * Has no effect on Windows, where the public directory is always copied.
+	 */
+	symlinkPublicDir: boolean;
 };
 
 export type LegacyBundleOptions = Partial<MandatoryLegacyBundleOptions>;
@@ -85,14 +92,12 @@ export const getConfig = ({
 	bufferStateDelayInMilliseconds,
 	maxTimelineTracks,
 	experimentalClientSideRenderingEnabled,
-	experimentalVisualModeEnabled,
 }: {
 	outDir: string;
 	entryPoint: string;
 	resolvedRemotionRoot: string;
 	bufferStateDelayInMilliseconds: number | null;
 	experimentalClientSideRenderingEnabled: boolean;
-	experimentalVisualModeEnabled: boolean;
 	maxTimelineTracks: number | null;
 	onProgress: (progress: number) => void;
 	options: MandatoryLegacyBundleOptions;
@@ -118,7 +123,6 @@ export const getConfig = ({
 		bufferStateDelayInMilliseconds,
 		poll: null,
 		experimentalClientSideRenderingEnabled,
-		experimentalVisualModeEnabled,
 		askAIEnabled: options?.askAIEnabled ?? true,
 		extraPlugins: [],
 	};
@@ -140,7 +144,6 @@ type NewBundleOptions = {
 	bufferStateDelayInMilliseconds: number | null;
 	audioLatencyHint: AudioContextLatencyCategory | null;
 	experimentalClientSideRenderingEnabled: boolean;
-	experimentalVisualModeEnabled: boolean;
 	renderDefaults: RenderDefaults | null;
 };
 
@@ -258,7 +261,6 @@ export const internalBundle = async (
 		maxTimelineTracks: actualArgs.maxTimelineTracks,
 		experimentalClientSideRenderingEnabled:
 			actualArgs.experimentalClientSideRenderingEnabled,
-		experimentalVisualModeEnabled: actualArgs.experimentalVisualModeEnabled,
 	});
 
 	if (actualArgs.rspack) {
@@ -365,16 +367,20 @@ export const internalBundle = async (
 	};
 
 	if (fs.existsSync(from)) {
-		await copyDir({
-			src: from,
-			dest: to,
-			onSymlinkDetected: showSymlinkWarning,
-			onProgress: (prog) => {
-				return options.onPublicDirCopyProgress?.(prog);
-			},
-			copiedBytes: 0,
-			lastReportedProgress: 0,
-		});
+		if (actualArgs.symlinkPublicDir && process.platform !== 'win32') {
+			await fs.promises.symlink(from, to);
+		} else {
+			await copyDir({
+				src: from,
+				dest: to,
+				onSymlinkDetected: showSymlinkWarning,
+				onProgress: (prog) => {
+					return options.onPublicDirCopyProgress?.(prog);
+				},
+				copiedBytes: 0,
+				lastReportedProgress: 0,
+			});
+		}
 	}
 
 	const html = indexHtml({
@@ -412,17 +418,14 @@ export const internalBundle = async (
 		// Actual log level is set in setPropsAndEnv()
 		logLevel: 'info',
 		mode: 'bundle',
-		audioLatencyHint: actualArgs.audioLatencyHint ?? 'interactive',
+		audioLatencyHint: actualArgs.audioLatencyHint ?? 'playback',
+		sampleRate: actualArgs.renderDefaults?.sampleRate ?? 48000,
 	});
 
 	fs.writeFileSync(path.join(outDir, 'index.html'), html);
 	fs.copyFileSync(
 		path.join(__dirname, '../favicon.ico'),
 		path.join(outDir, 'favicon.ico'),
-	);
-	fs.copyFileSync(
-		path.resolve(require.resolve('source-map'), '..', 'lib', 'mappings.wasm'),
-		path.join(outDir, SOURCE_MAP_ENDPOINT.replace('/', '')),
 	);
 	return outDir;
 };
@@ -453,12 +456,11 @@ export async function bundle(...args: Arguments): Promise<string> {
 		audioLatencyHint: actualArgs.audioLatencyHint ?? null,
 		experimentalClientSideRenderingEnabled:
 			actualArgs.experimentalClientSideRenderingEnabled ?? false,
-		experimentalVisualModeEnabled:
-			actualArgs.experimentalVisualModeEnabled ?? false,
 		renderDefaults: actualArgs.renderDefaults ?? null,
 		askAIEnabled: actualArgs.askAIEnabled ?? true,
 		keyboardShortcutsEnabled: actualArgs.keyboardShortcutsEnabled ?? true,
 		rspack: actualArgs.rspack ?? false,
+		symlinkPublicDir: actualArgs.symlinkPublicDir ?? false,
 	});
 	return result;
 }

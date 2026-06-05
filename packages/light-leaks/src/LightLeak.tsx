@@ -1,5 +1,4 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
-import {type SequenceControls, type SequenceSchema} from 'remotion';
 import {
 	AbsoluteFill,
 	Internals,
@@ -9,8 +8,12 @@ import {
 	useVideoConfig,
 	type AbsoluteFillLayout,
 	type LayoutAndStyle,
+	type SequenceControls,
 	type SequenceProps,
+	type SequenceSchema,
 } from 'remotion';
+
+const {createWebGLContextError} = Internals;
 
 export type LightLeakProps = Omit<
 	SequenceProps,
@@ -137,11 +140,7 @@ const LightLeakCanvas: React.FC<{
 				alpha: true,
 			});
 			if (!gl) {
-				cancelRender(
-					new Error(
-						'Failed to get WebGL context. Try rendering with --gl=angle to enable WebGL.',
-					),
-				);
+				cancelRender(createWebGLContextError('light leak'));
 				return null;
 			}
 
@@ -235,54 +234,36 @@ const LightLeakCanvas: React.FC<{
  * @see [Documentation](https://www.remotion.dev/docs/light-leaks/light-leak)
  */
 const lightLeakSchema = {
-	seed: {type: 'number', default: 0, description: 'Seed'},
+	durationInFrames: Internals.durationInFramesField,
+	from: Internals.fromField,
+	seed: {
+		type: 'number',
+		default: 0,
+		description: 'Seed',
+		hiddenFromList: false,
+	},
 	hueShift: {
 		type: 'number',
 		min: 0,
 		max: 360,
 		default: 0,
 		description: 'Hue Shift',
+		hiddenFromList: false,
 	},
-	'style.translate': {
-		type: 'translate',
-		step: 1,
-		default: '0px 0px',
-		description: 'Position',
-	},
-	'style.scale': {
-		type: 'number',
-		min: 0.05,
-		max: 100,
-		step: 0.01,
-		default: 1,
-		description: 'Scale',
-	},
-	'style.rotate': {
-		type: 'rotation',
-		step: 1,
-		default: '0deg',
-		description: 'Rotation',
-	},
-	'style.opacity': {
-		type: 'number',
-		min: 0,
-		max: 1,
-		step: 0.01,
-		default: 1,
-		description: 'Opacity',
-	},
+	...Internals.sequenceStyleSchema,
+	hidden: Internals.hiddenField,
 } as const satisfies SequenceSchema;
 
 const LightLeakInner: React.FC<
 	LightLeakProps & {
-		readonly controls: SequenceControls | undefined;
+		readonly _experimentalControls: SequenceControls | undefined;
 	}
 > = ({
 	seed = 0,
 	hueShift = 0,
 	durationInFrames,
 	style,
-	controls,
+	_experimentalControls: controls,
 	...sequenceProps
 }) => {
 	const {durationInFrames: videoDuration} = useVideoConfig();
@@ -309,7 +290,8 @@ const LightLeakInner: React.FC<
 		<Sequence
 			durationInFrames={resolvedDuration}
 			name="<LightLeak>"
-			controls={controls}
+			_remotionInternalDocumentationLink="https://www.remotion.dev/docs/light-leaks/light-leak"
+			_experimentalControls={controls}
 			{...sequenceProps}
 			style={style}
 		>
@@ -318,10 +300,11 @@ const LightLeakInner: React.FC<
 	);
 };
 
-export const LightLeak = Internals.wrapInSchema(
-	LightLeakInner,
-	lightLeakSchema,
-);
+export const LightLeak = Internals.wrapInSchema({
+	Component: LightLeakInner,
+	schema: lightLeakSchema,
+	supportsEffects: false,
+});
 
 LightLeak.displayName = 'LightLeak';
 

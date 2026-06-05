@@ -1,5 +1,12 @@
-import type {ExtrapolateType, InterpolateOptions} from 'remotion';
-import {interpolate, interpolateColors} from 'remotion';
+import {
+	assertValidInterpolateEasingOption,
+	assertValidInterpolatePosterizeOption,
+	interpolate,
+	interpolateColors,
+	type EasingFunction,
+	type ExtrapolateType,
+	type InterpolateOptions,
+} from 'remotion';
 import type {
 	CSSPropertiesKey,
 	CSSPropertiesValue,
@@ -7,6 +14,12 @@ import type {
 	UnitNumberAndFunction,
 } from '../../type';
 import {breakDownValueIntoUnitNumberAndFunctions} from './utils';
+
+type InterpolateStylesResolvedOptions = {
+	easing: EasingFunction;
+	extrapolateLeft: ExtrapolateType;
+	extrapolateRight: ExtrapolateType;
+};
 
 const interpolatedPropertyPart = ({
 	inputValue,
@@ -23,7 +36,7 @@ const interpolatedPropertyPart = ({
 	finalStylePropertyPart: UnitNumberAndFunction;
 	initialStyleProperty: CSSPropertiesValue;
 	finalStyleProperty: CSSPropertiesValue;
-	options: Required<InterpolateOptions>;
+	options: InterpolateStylesResolvedOptions;
 }): string | number => {
 	if (finalStylePropertyPart === undefined) {
 		throw new TypeError(
@@ -129,7 +142,7 @@ const interpolateProperty = ({
 	inputRange: number[];
 	initialStyleProperty: CSSPropertiesValue;
 	finalStyleProperty: CSSPropertiesValue;
-	options: Required<InterpolateOptions>;
+	options: InterpolateStylesResolvedOptions;
 }) => {
 	if (
 		typeof initialStyleProperty !== typeof finalStyleProperty &&
@@ -180,7 +193,7 @@ const interpolateStylesFunction = ({
 	inputRange: number[];
 	initialStyle: Style;
 	finalStyle: Style;
-	options: Required<InterpolateOptions>;
+	options: InterpolateStylesResolvedOptions;
 }): Style => {
 	const [startingValue, endingValue] = inputRange;
 	return Object.keys(initialStyle).reduce((acc, key) => {
@@ -290,7 +303,13 @@ export const interpolateStyles = (
 	checkInputRange(inputRange);
 	checkStylesRange(outputStylesRange);
 
-	let startIndex = inputRange.findIndex((step) => input < step) - 1;
+	assertValidInterpolatePosterizeOption(options?.posterize);
+	const posterizedInput =
+		options?.posterize === undefined
+			? input
+			: Math.floor(input / options.posterize) * options.posterize;
+
+	let startIndex = inputRange.findIndex((step) => posterizedInput < step) - 1;
 	if (startIndex === -1) {
 		startIndex = 0;
 	}
@@ -305,19 +324,27 @@ export const interpolateStyles = (
 	const initialStyle = outputStylesRange[startIndex];
 	const finalStyle = outputStylesRange[endIndex];
 
-	const easing = options?.easing ?? ((num: number): number => num);
+	assertValidInterpolateEasingOption(options?.easing, inputRange.length);
+
+	const easingOption = options?.easing;
+	const segmentEasing: EasingFunction =
+		easingOption === undefined
+			? (num: number): number => num
+			: typeof easingOption === 'function'
+				? easingOption
+				: easingOption[startIndex];
 
 	const extrapolateLeft: ExtrapolateType = options?.extrapolateLeft ?? 'extend';
 	const extrapolateRight: ExtrapolateType =
 		options?.extrapolateRight ?? 'extend';
 
 	return interpolateStylesFunction({
-		inputValue: input,
+		inputValue: posterizedInput,
 		inputRange: [startingValue, endingValue],
 		initialStyle,
 		finalStyle,
 		options: {
-			easing,
+			easing: segmentEasing,
 			extrapolateLeft,
 			extrapolateRight,
 		},

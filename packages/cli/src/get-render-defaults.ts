@@ -7,6 +7,7 @@ import {parsedCli} from './parsed-cli';
 const {
 	allowHtmlInCanvasOption,
 	x264Option,
+	gopSizeOption,
 	audioBitrateOption,
 	offthreadVideoCacheSizeInBytesOption,
 	concurrencyOption,
@@ -42,6 +43,7 @@ const {
 	publicLicenseKeyOption,
 	stillImageFormatOption,
 	videoImageFormatOption,
+	sampleRateOption,
 } = BrowserSafeApis.options;
 
 export const getRenderDefaults = (): RenderDefaults => {
@@ -60,6 +62,9 @@ export const getRenderDefaults = (): RenderDefaults => {
 		proResProfileOption.getValue({commandLine: parsedCli}).value ?? null;
 
 	const x264Preset = x264Option.getValue({
+		commandLine: parsedCli,
+	}).value;
+	const gopSize = gopSizeOption.getValue({
 		commandLine: parsedCli,
 	}).value;
 	const audioBitrate = audioBitrateOption.getValue({
@@ -180,6 +185,7 @@ export const getRenderDefaults = (): RenderDefaults => {
 		enforceAudioTrack,
 		proResProfile,
 		x264Preset: x264Preset ?? 'medium',
+		gopSize,
 		pixelFormat,
 		audioBitrate,
 		videoBitrate,
@@ -208,5 +214,6 @@ export const getRenderDefaults = (): RenderDefaults => {
 		publicLicenseKey,
 		outputLocation,
 		allowHtmlInCanvas,
+		sampleRate: sampleRateOption.getValue({commandLine: parsedCli}).value,
 	};
 };

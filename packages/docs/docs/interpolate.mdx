@@ -109,6 +109,60 @@ const scale = interpolate(frame, [0, 20], [0, 1], {
 });
 ```
 
+## Example: CSS transform values<AvailableFrom v="4.0.472" />
+
+`outputRange` may contain scale, translate, or rotate strings.
+Each value may contain up to three components.
+
+```tsx twoslash title="MyComposition.tsx"
+import {interpolate, useCurrentFrame} from 'remotion';
+
+export const MyComposition: React.FC = () => {
+  const frame = useCurrentFrame();
+
+  return (
+    <div
+      style={{
+        scale: interpolate(frame, [0, 30], ['1', '2 3']),
+        translate: interpolate(frame, [0, 30], ['0px 0px', '100px 50px']),
+        rotate: interpolate(frame, [0, 30], ['0deg', '90deg']),
+      }}
+    />
+  );
+};
+```
+
+Scale values use unitless numbers.
+Translate values use length or percentage units.
+Rotate values use `deg`, `rad`, `grad`, or `turn`.
+
+All values in one interpolation must have the same type.
+For each component, units must match.
+For missing dimensions, CSS defaults are used: scale defaults to `1`, translate and rotate default to `0`.
+
+## Example: Numeric tuples<AvailableFrom v="4.0.473" />
+
+`outputRange` may contain numeric tuples.
+Each tuple must contain the same number of numbers.
+
+```tsx twoslash title="MyComposition.tsx"
+import {interpolate, useCurrentFrame} from 'remotion';
+
+export const MyComposition: React.FC = () => {
+  const frame = useCurrentFrame();
+  const start: readonly [number, number] = interpolate(
+    frame,
+    [0, 60],
+    [
+      [0, 0.5],
+      [1, 0.5],
+    ],
+  );
+
+  return <div>{start.join(', ')}</div>;
+};
+```
+
 ## API
 
 Takes four arguments:
@@ -117,6 +171,10 @@ Takes four arguments:
 2. The range of values that you expect the input to assume.
 3. The range of output values that you want the input to map to.
 4. Options object:
+
+`inputRange` and `outputRange` must have the same length and at least one value.
+With one value, `interpolate()` always returns the only output value.
+Single-value ranges are supported from <AvailableFrom v="4.0.469" inline />.
 
 ### extrapolateLeft?
 
@@ -150,7 +208,7 @@ interpolate(1.5, [0, 1], [0, 2], {extrapolateRight: 'wrap'}); // 1
 
 _Default_: `(x) => x`
 
-Function which allows you to customize the input, for example to apply a certain easing function.
+Pass a single function to customize the normalized progress within the **active segment** (between two adjacent keyframes), for example to apply an easing curve.
 By default, the input is left unmodified, resulting in a pure linear interpolation. [Read the documentation for the built-in easing functions](/docs/easing).
 
 ```ts twoslash
@@ -165,13 +223,46 @@ interpolate(frame, [0, 100], [0, 1], {
   extrapolateRight: 'clamp',
 });
 
-//this is Remotion2.0 feature
 interpolate(frame, [0, 10, 40, 100], [0, 0.2, 0.6, 1], {
   easing: Easing.bezier(0.8, 0.22, 0.96, 0.65),
   extrapolateLeft: 'clamp',
   extrapolateRight: 'clamp',
 });
 ```
+
+#### Per-segment easing (array)<AvailableFrom v="4.0.462" /> {#per-segment-easing-array}
+
+You can pass an array of easing functions with one entry per segment between consecutive keyframes. Its length must be `inputRange.length - 1` (the same as `outputRange.length - 1`). The first easing applies between the first and second keyframe, the second easing between the second and third, and so on.
+For a single keyframe, pass an empty array.
+
+```ts twoslash
+import {useCurrentFrame} from 'remotion';
+const frame = useCurrentFrame();
+// ---cut---
+import {interpolate, Easing} from 'remotion';
+
+interpolate(frame, [0, 100, 200], [0, 1, 2], {
+  easing: [Easing.out(Easing.cubic), Easing.in(Easing.cubic)],
+});
+```
+
+### posterize<AvailableFrom v="4.0.470" />
+
+_Default_: no posterization
+
+Quantizes the input value before interpolation. Use it to sample an animation every `n` frames instead of updating on every frame.
+
+```ts twoslash title="MyComposition.tsx"
+import {interpolate, useCurrentFrame} from 'remotion';
+
+const frame = useCurrentFrame();
+const opacity = interpolate(frame, [0, 60], [0, 1], {
+  posterize: 3,
+});
+```
+
+With `posterize: 3`, frames `0`, `1`, and `2` use the value for frame `0`; frames `3`, `4`, and `5` use the value for frame `3`, and so on.
+`posterize` must be a positive finite number.
 
 ## Types
 
@@ -181,7 +272,10 @@ Since `v3.3.77`, types for the options are exported from Remotion.
 import {ExtrapolateType, InterpolateOptions} from 'remotion';
 
 const extrapolate: ExtrapolateType = 'clamp';
-const option: InterpolateOptions = {extrapolateLeft: extrapolate};
+const option: InterpolateOptions = {
+  extrapolateLeft: extrapolate,
+  posterize: 3,
+};
 ```
 
 ## Compatibility

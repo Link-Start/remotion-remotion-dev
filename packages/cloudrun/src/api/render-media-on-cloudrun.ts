@@ -128,6 +128,7 @@ const internalRenderMediaOnCloudrunRaw = async ({
 	encodingBufferSize,
 	proResProfile,
 	x264Preset,
+	gopSize,
 	crf,
 	pixelFormat,
 	imageFormat,
@@ -153,6 +154,7 @@ const internalRenderMediaOnCloudrunRaw = async ({
 	downloadBehavior,
 	metadata,
 	mediaCacheSizeInBytes,
+	sampleRate,
 }: InternalRenderMediaOnCloudrun): Promise<
 	RenderMediaOnCloudrunOutput | CloudRunCrashResponse
 > => {
@@ -191,6 +193,7 @@ const internalRenderMediaOnCloudrunRaw = async ({
 		scale: scale ?? 1,
 		proResProfile: proResProfile ?? null,
 		x264Preset: x264Preset ?? null,
+		gopSize: gopSize ?? null,
 		everyNthFrame: everyNthFrame ?? 1,
 		numberOfGifLoops: numberOfGifLoops ?? null,
 		frameRange: frameRange ?? null,
@@ -210,6 +213,7 @@ const internalRenderMediaOnCloudrunRaw = async ({
 		concurrency: concurrency ?? null,
 		enforceAudioTrack: enforceAudioTrack ?? false,
 		preferLossless: preferLossless ?? false,
+		sampleRate: sampleRate ?? 48000,
 		offthreadVideoCacheSizeInBytes: offthreadVideoCacheSizeInBytes ?? null,
 		offthreadVideoThreads: offthreadVideoThreads ?? null,
 		colorSpace: colorSpace ?? null,
@@ -330,6 +334,7 @@ export const renderMediaOnCloudrun = ({
 	encodingBufferSize,
 	proResProfile,
 	x264Preset,
+	gopSize,
 	crf,
 	pixelFormat,
 	imageFormat,
@@ -357,6 +362,7 @@ export const renderMediaOnCloudrun = ({
 	renderStatusWebhook,
 	offthreadVideoThreads,
 	mediaCacheSizeInBytes,
+	sampleRate,
 }: RenderMediaOnCloudrunInput): Promise<
 	RenderMediaOnCloudrunOutput | CloudRunCrashResponse
 > => {
@@ -380,6 +386,7 @@ export const renderMediaOnCloudrun = ({
 		encodingBufferSize: encodingBufferSize ?? null,
 		proResProfile: proResProfile ?? undefined,
 		x264Preset: x264Preset ?? null,
+		gopSize: gopSize ?? null,
 		crf: crf ?? undefined,
 		pixelFormat: pixelFormat ?? undefined,
 		imageFormat: imageFormat ?? undefined,
@@ -411,5 +418,6 @@ export const renderMediaOnCloudrun = ({
 		renderStatusWebhook: renderStatusWebhook ?? undefined,
 		offthreadVideoThreads: offthreadVideoThreads ?? null,
 		mediaCacheSizeInBytes: mediaCacheSizeInBytes ?? null,
+		sampleRate: sampleRate ?? 48000,
 	});
 };

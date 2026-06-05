@@ -5,24 +5,24 @@ export const SEQUENCE_BORDER_WIDTH = 1;
 
 const getWidthOfTrack = ({
 	durationInFrames,
-	lastFrame,
+	timelineDuration,
 	windowWidth,
 	spatialDuration,
 	nonNegativeMarginLeft,
 }: {
 	durationInFrames: number;
-	lastFrame: number;
+	timelineDuration: number;
 	windowWidth: number;
 	spatialDuration: number;
 	nonNegativeMarginLeft: number;
 }) => {
 	const fullWidth = windowWidth - TIMELINE_PADDING * 2;
 	const base =
-		durationInFrames === Infinity || lastFrame === 0
+		durationInFrames === Infinity || timelineDuration <= 0
 			? fullWidth
-			: (spatialDuration / lastFrame) * fullWidth;
+			: (spatialDuration / timelineDuration) * fullWidth;
 
-	return base - SEQUENCE_BORDER_WIDTH + nonNegativeMarginLeft;
+	return Math.max(0, base - SEQUENCE_BORDER_WIDTH + nonNegativeMarginLeft);
 };
 
 export const getTimelineSequenceLayout = ({
@@ -46,30 +46,33 @@ export const getTimelineSequenceLayout = ({
 }) => {
 	const maxMediaSequenceDuration =
 		(maxMediaDuration ?? Infinity) - startFromMedia;
-	const lastFrame = (video.durationInFrames ?? 1) - 1;
+	const timelineDuration = video.durationInFrames ?? 1;
 
-	const spatialDuration = Math.min(
-		maxMediaSequenceDuration,
-		durationInFrames - 1,
-		lastFrame - startFrom,
+	const spatialDuration = Math.max(
+		0,
+		Math.min(
+			maxMediaSequenceDuration,
+			durationInFrames,
+			timelineDuration - startFrom,
+		),
 	);
 
-	// Unclipped spatial duration: without the lastFrame - startFrom constraint
-	const naturalSpatialDuration = Math.min(
-		maxMediaSequenceDuration,
-		durationInFrames - 1,
+	// Unclipped spatial duration: without the timeline-end constraint
+	const naturalSpatialDuration = Math.max(
+		0,
+		Math.min(maxMediaSequenceDuration, durationInFrames),
 	);
 
 	const marginLeft =
-		lastFrame === 0
+		timelineDuration <= 0
 			? 0
-			: (startFrom / lastFrame) * (windowWidth - TIMELINE_PADDING * 2);
+			: (startFrom / timelineDuration) * (windowWidth - TIMELINE_PADDING * 2);
 
 	const nonNegativeMarginLeft = Math.min(marginLeft, 0);
 
 	const width = getWidthOfTrack({
 		durationInFrames,
-		lastFrame,
+		timelineDuration,
 		nonNegativeMarginLeft,
 		spatialDuration,
 		windowWidth,
@@ -77,7 +80,7 @@ export const getTimelineSequenceLayout = ({
 
 	const naturalWidth = getWidthOfTrack({
 		durationInFrames,
-		lastFrame,
+		timelineDuration,
 		nonNegativeMarginLeft,
 		spatialDuration: naturalSpatialDuration,
 		windowWidth,
@@ -86,7 +89,7 @@ export const getTimelineSequenceLayout = ({
 	const premountWidth = premountDisplay
 		? getWidthOfTrack({
 				durationInFrames: premountDisplay,
-				lastFrame,
+				timelineDuration,
 				nonNegativeMarginLeft,
 				spatialDuration: premountDisplay,
 				windowWidth,
@@ -96,7 +99,7 @@ export const getTimelineSequenceLayout = ({
 	const postmountWidth = postmountDisplay
 		? getWidthOfTrack({
 				durationInFrames: postmountDisplay,
-				lastFrame,
+				timelineDuration,
 				nonNegativeMarginLeft,
 				spatialDuration: postmountDisplay,
 				windowWidth,

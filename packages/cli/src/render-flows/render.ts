@@ -96,6 +96,7 @@ export const renderVideoFlow = async ({
 	addCleanupCallback,
 	cancelSignal,
 	crf,
+	gopSize,
 	uiCodec,
 	uiImageFormat,
 	ffmpegOverride,
@@ -129,9 +130,9 @@ export const renderVideoFlow = async ({
 	rspack,
 	askAIEnabled,
 	experimentalClientSideRenderingEnabled,
-	experimentalVisualModeEnabled,
 	keyboardShortcutsEnabled,
 	shouldCache,
+	sampleRate,
 }: {
 	remotionRoot: string;
 	fullEntryPoint: string;
@@ -164,6 +165,7 @@ export const renderVideoFlow = async ({
 	onProgress: JobProgressCallback;
 	addCleanupCallback: (label: string, cb: () => void) => void;
 	crf: Crf | null;
+	gopSize: number | null;
 	cancelSignal: CancelSignal | null;
 	uiCodec: Codec | null;
 	uiImageFormat: VideoImageFormat | null;
@@ -197,9 +199,9 @@ export const renderVideoFlow = async ({
 	rspack: boolean;
 	askAIEnabled: boolean;
 	experimentalClientSideRenderingEnabled: boolean;
-	experimentalVisualModeEnabled: boolean;
 	keyboardShortcutsEnabled: boolean;
 	shouldCache: boolean;
+	sampleRate: number;
 }) => {
 	RenderInternals.validateConcurrency({
 		value: concurrency,
@@ -269,6 +271,7 @@ export const renderVideoFlow = async ({
 		cancelSignal,
 		updatesDontOverwrite,
 		indent,
+		logLevel,
 	});
 
 	function updateBrowserProgress(progress: BrowserDownloadState) {
@@ -347,7 +350,6 @@ export const renderVideoFlow = async ({
 			publicPath,
 			audioLatencyHint,
 			experimentalClientSideRenderingEnabled,
-			experimentalVisualModeEnabled,
 			askAIEnabled,
 			keyboardShortcutsEnabled,
 			rspack,
@@ -384,6 +386,7 @@ export const renderVideoFlow = async ({
 		offthreadVideoCacheSizeInBytes,
 		binariesDirectory,
 		forceIPv4: false,
+		sampleRate,
 	});
 
 	addCleanupCallback(`Close server`, () => server.closeServer(false));
@@ -443,6 +446,11 @@ export const renderVideoFlow = async ({
 				compositionCodec: config.defaultCodec,
 			},
 		);
+
+	const resolvedSampleRate = BrowserSafeApis.options.sampleRateOption.getValue(
+		{commandLine: parsedCli},
+		config.defaultSampleRate,
+	).value;
 
 	RenderInternals.validateEvenDimensionsWithCodec({
 		width: config.width,
@@ -611,6 +619,7 @@ export const renderVideoFlow = async ({
 			server,
 			indent,
 			muted,
+			sampleRate: resolvedSampleRate,
 			onBrowserLog: null,
 			onFrameBuffer: null,
 			logLevel,
@@ -665,6 +674,7 @@ export const renderVideoFlow = async ({
 			durationInFrames: durationInFrames ?? config.durationInFrames,
 		},
 		crf: crf ?? null,
+		gopSize,
 		envVariables,
 		frameRange,
 		serializedInputPropsWithCustomSchema,
@@ -741,6 +751,7 @@ export const renderVideoFlow = async ({
 		onLog,
 		licenseKey: null,
 		isProduction: null,
+		sampleRate: resolvedSampleRate,
 	});
 	if (!updatesDontOverwrite) {
 		updateRenderProgress({newline: true, printToConsole: true});

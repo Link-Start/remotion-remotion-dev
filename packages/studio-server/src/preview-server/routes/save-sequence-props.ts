@@ -1,122 +1,231 @@
 import {readFileSync} from 'node:fs';
-import path from 'node:path';
 import {RenderInternals} from '@remotion/renderer';
 import type {
+	SaveSequencePropEdit,
 	SaveSequencePropsRequest,
 	SaveSequencePropsResponse,
+	SaveSequencePropsResult,
 } from '@remotion/studio-shared';
-import {updateSequenceProps} from '../../codemods/update-sequence-props';
+import {getAllSchemaKeys} from '@remotion/studio-shared';
+import {NoReactInternals} from 'remotion/no-react';
+import {
+	type RemovedProp,
+	updateMultipleSequenceProps,
+} from '../../codemods/update-sequence-props/update-sequence-props';
 import {writeFileAndNotifyFileWatchers} from '../../file-watcher';
+import {resolveFileInsideProject} from '../../helpers/resolve-file-inside-project';
 import type {ApiHandler} from '../api-types';
 import {
 	printUndoHint,
-	pushToUndoStack,
+	pushTransactionToUndoStack,
 	suppressUndoStackInvalidation,
 } from '../undo-stack';
 import {suppressBundlerUpdateForFile} from '../watch-ignore-next-change';
-import {computeSequencePropsStatus} from './can-update-sequence-props';
-import {formatPropChange, logUpdate, normalizeQuotes} from './log-update';
+import {computeSequencePropsStatusFromContent} from './can-update-sequence-props';
+import {logUpdate} from './log-updates/log-update';
+import {withSavePropsLock} from './save-props-mutex';
+
+type ResolvedSequencePropEdit = {
+	index: number;
+	fileName: SaveSequencePropEdit['fileName'];
+	nodePath: SaveSequencePropEdit['nodePath'];
+	key: SaveSequencePropEdit['key'];
+	value: unknown;
+	valueString: string;
+	defaultValue: unknown | null;
+	defaultValueString: string | null;
+	schema: SaveSequencePropEdit['schema'];
+};
+
+type SequencePropEditGroup = {
+	fileRelativeToRoot: string;
+	edits: ResolvedSequencePropEdit[];
+};
+
+type SequencePropUndoSnapshot = {
+	filePath: string;
+	oldContents: string;
+	newContents: string;
+	logLine: number;
+};
+
+type SequencePropEditResult = {
+	oldValueString: string;
+	logLine: number;
+	removedProps: RemovedProp[];
+	formatted: boolean;
+};
 
 export const saveSequencePropsHandler: ApiHandler<
 	SaveSequencePropsRequest,
 	SaveSequencePropsResponse
-> = async ({
-	input: {fileName, nodePath, key, value, defaultValue, observedKeys},
+> = ({
+	input: {edits, clientId, undoLabel, redoLabel},
 	remotionRoot,
 	logLevel,
-}) => {
-	try {
-		RenderInternals.Log.trace(
-			{indent: false, logLevel},
-			`[save-sequence-props] Received request for fileName="${fileName}" key="${key}"`,
-		);
-		const absolutePath = path.resolve(remotionRoot, fileName);
-		const fileRelativeToRoot = path.relative(remotionRoot, absolutePath);
-		if (fileRelativeToRoot.startsWith('..')) {
-			throw new Error('Cannot modify a file outside the project');
+}) =>
+	withSavePropsLock(async () => {
+		if (edits.length === 0) {
+			throw new Error('No sequence prop edits to save');
 		}
 
-		const fileContents = readFileSync(absolutePath, 'utf-8');
+		RenderInternals.Log.trace(
+			{indent: false, logLevel},
+			`[save-sequence-props] Received request with ${edits.length} edit(s)`,
+		);
 
-		const {output, oldValueString, formatted, logLine} =
-			await updateSequenceProps({
-				input: fileContents,
-				nodePath,
-				key,
-				value: JSON.parse(value),
-				defaultValue: defaultValue !== null ? JSON.parse(defaultValue) : null,
+		const editGroups = new Map<string, SequencePropEditGroup>();
+
+		for (const [index, edit] of edits.entries()) {
+			const parsedValue = JSON.parse(edit.value);
+			const parsedDefaultValue =
+				edit.defaultValue !== null ? JSON.parse(edit.defaultValue) : null;
+			const {absolutePath, fileRelativeToRoot} = resolveFileInsideProject({
+				remotionRoot,
+				fileName: edit.fileName,
+				action: 'modify',
 			});
 
-		const newValueString = JSON.stringify(JSON.parse(value));
-		const parsedDefault =
-			defaultValue !== null ? JSON.parse(defaultValue) : null;
-		const defaultValueString =
-			parsedDefault !== null ? JSON.stringify(parsedDefault) : null;
+			const group = editGroups.get(absolutePath) ?? {
+				fileRelativeToRoot,
+				edits: [],
+			};
+			group.edits.push({
+				index,
+				fileName: edit.fileName,
+				nodePath: edit.nodePath,
+				key: edit.key,
+				value: parsedValue,
+				valueString: JSON.stringify(parsedValue),
+				defaultValue: parsedDefaultValue,
+				defaultValueString:
+					parsedDefaultValue !== null
+						? JSON.stringify(parsedDefaultValue)
+						: null,
+				schema: edit.schema,
+			});
+			editGroups.set(absolutePath, group);
+		}
 
-		const normalizedOld = normalizeQuotes(oldValueString);
-		const normalizedNew = normalizeQuotes(newValueString);
-		const normalizedDefault =
-			defaultValueString !== null ? normalizeQuotes(defaultValueString) : null;
+		const snapshots: SequencePropUndoSnapshot[] = [];
+		const outputByPath = new Map<string, string>();
+		const resultByIndex = new Map<number, SequencePropEditResult>();
 
-		const undoPropChange = formatPropChange({
-			key,
-			oldValueString: normalizedNew,
-			newValueString: normalizedOld,
-			defaultValueString: normalizedDefault,
-		});
-		const redoPropChange = formatPropChange({
-			key,
-			oldValueString: normalizedOld,
-			newValueString: normalizedNew,
-			defaultValueString: normalizedDefault,
-		});
+		for (const [absolutePath, group] of editGroups) {
+			const fileContents = readFileSync(absolutePath, 'utf-8');
 
-		pushToUndoStack({
-			filePath: absolutePath,
-			oldContents: fileContents,
+			const {
+				output,
+				formatted,
+				results: updateResults,
+			} = await updateMultipleSequenceProps({
+				input: fileContents,
+				changes: group.edits.map((edit) => {
+					return {
+						nodePath: edit.nodePath.nodePath,
+						updates: [
+							{
+								key: edit.key,
+								value: edit.value,
+								defaultValue: edit.defaultValue,
+							},
+						],
+						schema: NoReactInternals.sequenceSchema,
+					};
+				}),
+				prettierConfigOverride: null,
+			});
+
+			const [{logLine: firstLogLine}] = updateResults;
+			outputByPath.set(absolutePath, output);
+			snapshots.push({
+				filePath: absolutePath,
+				oldContents: fileContents,
+				newContents: output,
+				logLine: firstLogLine,
+			});
+
+			for (const [resultIndex, result] of updateResults.entries()) {
+				const edit = group.edits[resultIndex];
+				resultByIndex.set(edit.index, {
+					oldValueString: result.oldValueStrings[0],
+					logLine: result.logLine,
+					removedProps: result.removedProps,
+					formatted,
+				});
+			}
+		}
+
+		const undoMessage = `↩️  ${undoLabel}`;
+		const redoMessage = `↪️  ${redoLabel}`;
+
+		pushTransactionToUndoStack({
+			snapshots,
 			logLevel,
 			remotionRoot,
-			logLine,
-			description: {
-				undoMessage: `Undid ${undoPropChange}`,
-				redoMessage: `Redid ${redoPropChange}`,
-			},
+			description: {undoMessage, redoMessage},
 			entryType: 'sequence-props',
 			suppressHmrOnFileRestore: true,
 		});
-		suppressUndoStackInvalidation(absolutePath);
-		suppressBundlerUpdateForFile(absolutePath);
-		writeFileAndNotifyFileWatchers(absolutePath, output);
 
-		logUpdate({
-			fileRelativeToRoot,
-			line: logLine,
-			key,
-			oldValueString,
-			newValueString,
-			defaultValueString,
-			formatted,
-			logLevel,
-		});
+		for (const [absolutePath, output] of outputByPath) {
+			suppressUndoStackInvalidation(absolutePath);
+			suppressBundlerUpdateForFile(absolutePath);
+			writeFileAndNotifyFileWatchers(absolutePath, output, clientId);
+		}
+
+		for (const {edits: groupEdits, fileRelativeToRoot} of editGroups.values()) {
+			for (const edit of groupEdits) {
+				const result = resultByIndex.get(edit.index);
+				if (!result) {
+					throw new Error('Could not compute sequence prop edit result');
+				}
+
+				logUpdate({
+					fileRelativeToRoot,
+					line: result.logLine,
+					key: edit.key,
+					oldValueString: result.oldValueString,
+					newValueString: edit.valueString,
+					defaultValueString: edit.defaultValueString,
+					formatted: result.formatted,
+					logLevel,
+					removedProps: result.removedProps,
+					addedProps: [],
+				});
+			}
+		}
 
 		printUndoHint(logLevel);
 
-		const newStatus = computeSequencePropsStatus({
-			fileName,
-			keys: observedKeys,
-			nodePath,
-			remotionRoot,
+		const results: SaveSequencePropsResult[] = edits.map((edit) => {
+			const {absolutePath} = resolveFileInsideProject({
+				remotionRoot,
+				fileName: edit.fileName,
+				action: 'modify',
+			});
+			const output = outputByPath.get(absolutePath);
+			if (!output) {
+				throw new Error('Could not compute sequence prop edit status');
+			}
+
+			const newStatus = computeSequencePropsStatusFromContent({
+				fileContents: output,
+				keys: getAllSchemaKeys(edit.schema),
+				nodePath: edit.nodePath.nodePath,
+				effects: [],
+			});
+
+			return {
+				fileName: edit.fileName,
+				nodePath: edit.nodePath,
+				props: newStatus.props,
+			};
 		});
 
 		return {
-			success: true,
-			newStatus,
+			canUpdate: true,
+			props: results[0].props,
+			results,
 		};
-	} catch (err) {
-		return {
-			success: false,
-			reason: (err as Error).message,
-			stack: (err as Error).stack as string,
-		};
-	}
-};
+	});

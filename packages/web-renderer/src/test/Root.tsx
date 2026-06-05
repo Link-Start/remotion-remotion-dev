@@ -16,6 +16,11 @@ import {borderRadiusNone} from './fixtures/border-radius-none';
 import {borderRadiusPercentage} from './fixtures/border-radius-percentage';
 import {borderRadiusSimple} from './fixtures/border-radius-simple';
 import {boxShadow} from './fixtures/box-shadow';
+import {clipPathCircle} from './fixtures/clip-path-circle';
+import {clipPathEllipse} from './fixtures/clip-path-ellipse';
+import {clipPathInset} from './fixtures/clip-path-inset';
+import {clipPathPath} from './fixtures/clip-path-path';
+import {clipPathPolygon} from './fixtures/clip-path-polygon';
 import {threeDFlattening} from './fixtures/clipped';
 import {complexNestedSvg} from './fixtures/complex-nested-svg';
 import {deeplyNestedTransform} from './fixtures/deeply-nested-transform';
@@ -27,6 +32,11 @@ import {flexPositionedScaled} from './fixtures/flex-positioned-scaled';
 import {gradientTransparentKeyword} from './fixtures/gradient-transparent-keyword';
 import {hugeImageTransform} from './fixtures/huge-image-transform';
 import {inside3dTransform} from './fixtures/inside-3d-transform';
+import {issue7050Minimal} from './fixtures/issue-7050-minimal';
+import {issue7050Repro} from './fixtures/issue-7050-repro';
+import {issue7199ScaleAndDropShadow} from './fixtures/issue-7199-scale-and-drop-shadow';
+import {issue7243SvgJapaneseText} from './fixtures/issue-7243-svg-japanese-text';
+import {issue7489Minimal} from './fixtures/issue-7489-minimal';
 import {lineHeight} from './fixtures/line-height';
 import {linearGradient} from './fixtures/linear-gradient';
 import {manyLayers} from './fixtures/many-layers';
@@ -44,6 +54,7 @@ import {overflowHidden} from './fixtures/overflow-hidden';
 import {overflowHidden3dTransform} from './fixtures/overflow-hidden-3d-transform';
 import {parentRotatedSvg} from './fixtures/parent-rotated-svg';
 import {parentTransformOrigin} from './fixtures/parent-transform-origin';
+import {pixelDensity} from './fixtures/pixel-density';
 import {pixelTransformOrigin} from './fixtures/pixel-transform-origin';
 import {rotatedCanvas} from './fixtures/rotated-canvas';
 import {scaleFixture} from './fixtures/scale';
@@ -61,6 +72,7 @@ import {letterSpacing} from './fixtures/text/letter-spacing';
 import {paragraphs} from './fixtures/text/paragraphs';
 import {textFixture} from './fixtures/text/text';
 import {textShadow} from './fixtures/text/text-shadow';
+import {textShadowScale} from './fixtures/text/text-shadow-scale';
 import {textTransform} from './fixtures/text/text-transform';
 import {webkitTextFillColor} from './fixtures/text/webkit-text-fill-color';
 import {webkitTextStroke} from './fixtures/text/webkit-text-stroke';
@@ -75,6 +87,9 @@ import {transformWithScale} from './fixtures/transforms/transform-with-scale';
 import {transformWithTranslate} from './fixtures/transforms/transform-with-translate';
 import {withMargin} from './fixtures/transforms/with-margin';
 import {withNegativeMargin} from './fixtures/transforms/with-negative-margin';
+import {transitionClockWipe} from './fixtures/transition-clock-wipe';
+import {transitionIris} from './fixtures/transition-iris';
+import {transitionWipe} from './fixtures/transition-wipe';
 import {unwrapped} from './fixtures/unwrapped';
 import {whiteSpaceCollapsing} from './fixtures/whitespace-collapsing';
 import {whiteSpaceCollapsing2} from './fixtures/whitespace-collapsing-2';
@@ -86,6 +101,7 @@ export const Root: React.FC = () => {
 			<Composition {...parentRotatedSvg} />
 			<Composition {...selfTransformOrigin} />
 			<Composition {...parentTransformOrigin} />
+			<Composition {...pixelDensity} />
 			<Composition {...accumulatedTransforms} />
 			<Composition {...rotatedCanvas} />
 			<Composition {...multiLevelTransformOrigins} />
@@ -152,6 +168,7 @@ export const Root: React.FC = () => {
 				<Composition {...backgroundClipText} />
 				<Composition {...backgroundClipText3dTransform} />
 				<Composition {...textShadow} />
+				<Composition {...textShadowScale} />
 				<Composition {...whiteSpaceCollapsing} />
 				<Composition {...whiteSpaceCollapsing2} />
 				<Composition {...filterText} />
@@ -170,6 +187,23 @@ export const Root: React.FC = () => {
 				<Composition {...deeplyNestedTransform} />
 				<Composition {...manyLayers} />
 				<Composition {...threeDFlattening} />
+				<Composition {...issue7050Repro} />
+				<Composition {...issue7050Minimal} />
+				<Composition {...issue7199ScaleAndDropShadow} />
+				<Composition {...issue7243SvgJapaneseText} />
+				<Composition {...issue7489Minimal} />
+			</Folder>
+			<Folder name="clip-path">
+				<Composition {...clipPathPolygon} />
+				<Composition {...clipPathPath} />
+				<Composition {...clipPathCircle} />
+				<Composition {...clipPathInset} />
+				<Composition {...clipPathEllipse} />
+			</Folder>
+			<Folder name="Transitions">
+				<Composition {...transitionWipe} />
+				<Composition {...transitionClockWipe} />
+				<Composition {...transitionIris} />
 			</Folder>
 		</>
 	);
