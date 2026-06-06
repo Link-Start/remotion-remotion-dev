@@ -1,6 +1,6 @@
 import {
 	isSchemaFieldKeyframable,
-	optimisticUpdateForEffectCodeValues,
+	optimisticUpdateForEffectPropStatuses,
 } from '@remotion/studio-shared';
 import React, {useCallback, useContext, useMemo} from 'react';
 import type {
@@ -71,15 +71,15 @@ const Value: React.FC<{
 	readonly validatedLocation: CodePosition;
 	readonly keyframeDisplayOffset: number;
 }> = ({field, nodePath, validatedLocation, keyframeDisplayOffset}) => {
-	const {setEffectDragOverrides, clearEffectDragOverrides, setCodeValues} =
+	const {setEffectDragOverrides, clearEffectDragOverrides, setPropStatuses} =
 		useContext(Internals.VisualModeSettersContext);
 
 	const {getEffectDragOverrides} = useContext(
 		Internals.VisualModeDragOverridesContext,
 	);
 
-	const {codeValues: visualModeCodeValues} = useContext(
-		Internals.VisualModeCodeValuesContext,
+	const {propStatuses: visualModePropStatuses} = useContext(
+		Internals.VisualModePropStatusesContext,
 	);
 
 	const {previewServerState} = useContext(StudioServerConnectionCtx);
@@ -88,8 +88,8 @@ const Value: React.FC<{
 			? previewServerState.clientId
 			: null;
 
-	const effectStatus = Internals.getEffectCodeValuesCtx({
-		codeValues: visualModeCodeValues,
+	const effectStatus = Internals.getEffectPropStatusesCtx({
+		propStatuses: visualModePropStatuses,
 		nodePath,
 		effectIndex: field.effectIndex,
 	});
@@ -176,9 +176,9 @@ const Value: React.FC<{
 
 			return enqueueSavePropChange({
 				nodePath,
-				setCodeValues,
+				setPropStatuses,
 				applyOptimistic: (prev) =>
-					optimisticUpdateForEffectCodeValues({
+					optimisticUpdateForEffectPropStatuses({
 						previous: prev,
 						effectIndex: field.effectIndex,
 						fieldKey: field.key,
@@ -187,6 +187,7 @@ const Value: React.FC<{
 					}),
 				apiCall: () =>
 					callApi('/api/save-effect-props', {
+						type: 'value',
 						fileName: validatedLocation.source,
 						sequenceNodePath: nodePath,
 						effectIndex: field.effectIndex,
@@ -207,7 +208,7 @@ const Value: React.FC<{
 			field.key,
 			nodePath,
 			propStatus,
-			setCodeValues,
+			setPropStatuses,
 			validatedLocation,
 		],
 	);
@@ -230,7 +231,7 @@ const Value: React.FC<{
 				sourceFrame,
 				value,
 				schema: field.effectSchema,
-				setCodeValues,
+				setPropStatuses,
 				clientId,
 			});
 		},
@@ -240,7 +241,7 @@ const Value: React.FC<{
 			field.effectSchema,
 			field.key,
 			nodePath,
-			setCodeValues,
+			setPropStatuses,
 			validatedLocation,
 		],
 	);
@@ -305,7 +306,7 @@ const Value: React.FC<{
 	}
 
 	const effectiveValue = Internals.getEffectiveVisualModeValue({
-		codeValue: propStatus,
+		propStatus,
 		dragOverrideValue,
 		defaultValue: field.fieldSchema.default,
 		frame: jsxFrame,
@@ -342,8 +343,8 @@ export const TimelineEffectPropItem: React.FC<{
 }) => {
 	const {previewServerState} = useContext(StudioServerConnectionCtx);
 	const {setSelectedModal} = useContext(ModalsContext);
-	const {setCodeValues} = useContext(Internals.VisualModeSettersContext);
-	const {codeValues} = useContext(Internals.VisualModeCodeValuesContext);
+	const {setPropStatuses} = useContext(Internals.VisualModeSettersContext);
+	const {propStatuses} = useContext(Internals.VisualModePropStatusesContext);
 	const {getEffectDragOverrides} = useContext(
 		Internals.VisualModeDragOverridesContext,
 	);
@@ -357,12 +358,12 @@ export const TimelineEffectPropItem: React.FC<{
 
 	const effectStatus = useMemo(
 		() =>
-			Internals.getEffectCodeValuesCtx({
-				codeValues,
+			Internals.getEffectPropStatusesCtx({
+				propStatuses,
 				nodePath,
 				effectIndex: field.effectIndex,
 			}),
-		[codeValues, nodePath, field.effectIndex],
+		[propStatuses, nodePath, field.effectIndex],
 	);
 
 	const propStatus =
@@ -431,6 +432,7 @@ export const TimelineEffectPropItem: React.FC<{
 				: null;
 
 		saveEffectProp({
+			type: 'value',
 			fileName: validatedLocation.source,
 			nodePath,
 			effectIndex: field.effectIndex,
@@ -438,7 +440,7 @@ export const TimelineEffectPropItem: React.FC<{
 			value: field.fieldSchema.default,
 			defaultValue,
 			schema: field.effectSchema,
-			setCodeValues,
+			setPropStatuses,
 			clientId: previewServerState.clientId,
 		});
 	}, [
@@ -450,7 +452,7 @@ export const TimelineEffectPropItem: React.FC<{
 		field.key,
 		nodePath,
 		previewServerState,
-		setCodeValues,
+		setPropStatuses,
 		validatedLocation.source,
 	]);
 

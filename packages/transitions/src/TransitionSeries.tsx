@@ -19,6 +19,8 @@ import type {
 } from './types.js';
 import {validateDurationInFrames} from './validate.js';
 
+const {SequenceWithoutSchema} = Internals;
+
 const TransitionSeriesTransition = function <
 	PresentationProps extends Record<string, unknown>,
 >(_props: TransitionSeriesTransitionProps<PresentationProps>) {
@@ -39,10 +41,6 @@ type SeriesSequenceProps = PropsWithChildren<
 		readonly durationInFrames: number;
 		readonly offset?: number;
 		readonly className?: string;
-		/**
-		 * @deprecated For internal use only
-		 */
-		readonly stack?: string;
 	} & LayoutBasedProps &
 		Pick<SequencePropsWithoutDuration, 'name'>
 >;
@@ -287,7 +285,6 @@ const TransitionSeriesChildren: FC<{readonly children: React.ReactNode}> = ({
 					halfDuration,
 					children: overlayProps.children,
 					index: i,
-					stack: overlayProps.stack,
 				} as unknown as React.ReactNode);
 
 				return null;
@@ -344,8 +341,9 @@ const TransitionSeriesChildren: FC<{readonly children: React.ReactNode}> = ({
 			const {
 				durationInFrames,
 				children: _children,
+				from: _from,
 				...passedProps
-			} = castedChildAgain.props;
+			} = castedChildAgain.props as SeriesSequenceProps & {from: never};
 			validateDurationInFrames(durationInFramesProp, {
 				component: `of a <TransitionSeries.Sequence /> component`,
 				allowFloats: true,
@@ -460,7 +458,7 @@ const TransitionSeriesChildren: FC<{readonly children: React.ReactNode}> = ({
 				const UppercasePrevPresentation = prevPresentation.component;
 
 				return (
-					<Sequence
+					<SequenceWithoutSchema
 						// eslint-disable-next-line react/no-array-index-key
 						key={i}
 						from={actualStartFrame}
@@ -514,7 +512,7 @@ const TransitionSeriesChildren: FC<{readonly children: React.ReactNode}> = ({
 								</UppercasePrevPresentation>
 							</WrapInExitingProgressContext>
 						</UppercaseNextPresentation>
-					</Sequence>
+					</SequenceWithoutSchema>
 				);
 			}
 
@@ -524,7 +522,7 @@ const TransitionSeriesChildren: FC<{readonly children: React.ReactNode}> = ({
 				const UppercasePrevPresentation = prevPresentation.component;
 
 				return (
-					<Sequence
+					<SequenceWithoutSchema
 						// eslint-disable-next-line react/no-array-index-key
 						key={i}
 						from={actualStartFrame}
@@ -558,7 +556,7 @@ const TransitionSeriesChildren: FC<{readonly children: React.ReactNode}> = ({
 								{child}
 							</WrapInEnteringProgressContext>
 						</UppercasePrevPresentation>
-					</Sequence>
+					</SequenceWithoutSchema>
 				);
 			}
 
@@ -568,7 +566,7 @@ const TransitionSeriesChildren: FC<{readonly children: React.ReactNode}> = ({
 				const UppercaseNextPresentation = nextPresentation.component;
 
 				return (
-					<Sequence
+					<SequenceWithoutSchema
 						// eslint-disable-next-line react/no-array-index-key
 						key={i}
 						from={actualStartFrame}
@@ -600,12 +598,12 @@ const TransitionSeriesChildren: FC<{readonly children: React.ReactNode}> = ({
 								{child}
 							</WrapInExitingProgressContext>
 						</UppercaseNextPresentation>
-					</Sequence>
+					</SequenceWithoutSchema>
 				);
 			}
 
 			return (
-				<Sequence
+				<SequenceWithoutSchema
 					// eslint-disable-next-line react/no-array-index-key
 					key={i}
 					from={actualStartFrame}
@@ -619,7 +617,7 @@ const TransitionSeriesChildren: FC<{readonly children: React.ReactNode}> = ({
 					}
 				>
 					{child}
-				</Sequence>
+				</SequenceWithoutSchema>
 			);
 		});
 
@@ -631,21 +629,19 @@ const TransitionSeriesChildren: FC<{readonly children: React.ReactNode}> = ({
 				durationInFrames: number;
 				children: React.ReactNode;
 				index: number;
-				stack: string | undefined;
 			};
 
 			return (
-				<Sequence
+				<SequenceWithoutSchema
 					key={`overlay-${info.index}`}
 					from={Math.round(info.overlayFrom)}
 					durationInFrames={info.durationInFrames}
 					name="<TS.Overlay>"
 					_remotionInternalDocumentationLink="https://www.remotion.dev/docs/transitions/transitionseries"
 					layout="absolute-fill"
-					{...(info.stack ? {stack: info.stack} : {})}
 				>
 					{info.children}
-				</Sequence>
+				</SequenceWithoutSchema>
 			);
 		});
 
@@ -699,5 +695,3 @@ TransitionSeries.Overlay = SeriesOverlay;
 export {TransitionSeries};
 
 Internals.addSequenceStackTraces(TransitionSeries);
-Internals.addSequenceStackTraces(SeriesSequence);
-Internals.addSequenceStackTraces(SeriesOverlay);

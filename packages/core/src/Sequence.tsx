@@ -13,7 +13,10 @@ import type {EffectDefinition} from './effects/effect-types.js';
 import {Freeze} from './freeze.js';
 import {useNonce} from './nonce.js';
 import {PremountContext} from './PremountContext.js';
-import {sequenceSchema} from './sequence-field-schema.js';
+import {
+	sequenceSchema,
+	sequenceSchemaWithoutFrom,
+} from './sequence-field-schema.js';
 import type {SequenceContextType} from './SequenceContext.js';
 import {SequenceContext} from './SequenceContext.js';
 import {SequenceManager} from './SequenceManager.js';
@@ -275,7 +278,7 @@ const RegularSequenceRefForwardingFunction: React.ForwardRefRenderFunction<
 
 	const isInsideSeries = useContext(IsInsideSeriesContext);
 
-	const inheritedStack = (other as any)?.stack ?? null;
+	const inheritedStack = (other as {readonly stack?: string})?.stack ?? null;
 	// Our assumption: Stack doesnt' change. After we symbolicate we assign it a nodePath
 	// and if it changes, it would lead to-remounting of the sequence.
 	const stackRef = useRef<string | null>(null);
@@ -543,6 +546,7 @@ const SequenceRefForwardingFunction: React.ForwardRefRenderFunction<
 };
 
 const SequenceInner = forwardRef(SequenceRefForwardingFunction);
+export const SequenceWithoutSchema = SequenceInner;
 
 /*
  * @description A component that time-shifts its children and wraps them in an absolutely positioned <div>.
@@ -551,5 +555,11 @@ const SequenceInner = forwardRef(SequenceRefForwardingFunction);
 export const Sequence = wrapInSchema({
 	Component: SequenceInner,
 	schema: sequenceSchema,
+	supportsEffects: false,
+});
+
+export const SequenceWithoutFrom = wrapInSchema({
+	Component: SequenceInner,
+	schema: sequenceSchemaWithoutFrom,
 	supportsEffects: false,
 });

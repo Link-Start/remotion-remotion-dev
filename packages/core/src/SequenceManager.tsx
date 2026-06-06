@@ -2,18 +2,22 @@ import React, {useCallback, useMemo, useRef, useState} from 'react';
 import type {TSequence} from './CompositionManager.js';
 import type {
 	CanUpdateSequencePropStatus,
-	CodeValues,
 	DragOverrideValue,
 	DragOverrides,
 	EffectDragOverrides,
 	GetDragOverrides,
 	GetEffectDragOverrides,
+	PropStatuses,
 } from './use-schema.js';
 
 export type SequenceManagerContext = {
 	registerSequence: (seq: TSequence) => void;
 	unregisterSequence: (id: string) => void;
 	sequences: TSequence[];
+};
+
+export type SequenceManagerRef = {
+	current: TSequence[];
 };
 
 export type SequenceNodePath = Array<string | number>;
@@ -28,8 +32,17 @@ export const SequenceManager = React.createContext<SequenceManagerContext>({
 	sequences: [],
 });
 
-export type VisualModeCodeValues = {
-	codeValues: CodeValues;
+export const SequenceManagerRefContext =
+	React.createContext<SequenceManagerRef>({
+		current: [],
+	});
+
+export type VisualModePropStatuses = {
+	propStatuses: PropStatuses;
+};
+
+export type VisualModePropStatusesRef = {
+	current: PropStatuses;
 };
 
 export type VisualModeDragOverrides = {
@@ -54,7 +67,7 @@ export type VisualModeSetters = {
 		nodePath: SequencePropsSubscriptionKey,
 		effectIndex: number,
 	) => void;
-	setCodeValues: (
+	setPropStatuses: (
 		nodePath: SequencePropsSubscriptionKey,
 		values: (
 			prev: CanUpdateSequencePropsResponse,
@@ -108,9 +121,14 @@ export const makeSequencePropsSubscriptionKey = (
 	return `${key.nodePath.join('.')}.${key.sequenceKeys.join('.')}.${key.effectKeys.map((keys) => keys.join('.')).join('.')}`;
 };
 
-export const VisualModeCodeValuesContext =
-	React.createContext<VisualModeCodeValues>({
-		codeValues: {},
+export const VisualModePropStatusesContext =
+	React.createContext<VisualModePropStatuses>({
+		propStatuses: {},
+	});
+
+export const VisualModePropStatusesRefContext =
+	React.createContext<VisualModePropStatusesRef>({
+		current: {},
 	});
 
 export const VisualModeDragOverridesContext =
@@ -136,7 +154,7 @@ export const VisualModeSettersContext = React.createContext<VisualModeSetters>({
 	clearEffectDragOverrides: () => {
 		throw new Error('VisualModeSettersContext not initialized');
 	},
-	setCodeValues: () => {
+	setPropStatuses: () => {
 		throw new Error('VisualModeSettersContext not initialized');
 	},
 });
@@ -158,12 +176,16 @@ export const SequenceManagerProvider: React.FC<{
 	readonly children: React.ReactNode;
 }> = ({children}) => {
 	const [sequences, setSequences] = useState<TSequence[]>([]);
+	const sequencesRef = useRef(sequences);
+	sequencesRef.current = sequences;
 	const [dragOverrides, setControlOverrides] = useState<DragOverrides>({});
 	const controlOverridesRef = useRef(dragOverrides);
 	controlOverridesRef.current = dragOverrides;
 	const [effectDragOverridesState, setEffectDragOverridesState] =
 		useState<EffectDragOverrides>({});
-	const [codeValues, setCodeValuesMapState] = useState<CodeValues>({});
+	const [propStatuses, setPropStatusesMapState] = useState<PropStatuses>({});
+	const propStatusesRef = useRef(propStatuses);
+	propStatusesRef.current = propStatuses;
 
 	const setDragOverrides = useCallback(
 		(
@@ -235,14 +257,14 @@ export const SequenceManagerProvider: React.FC<{
 		[],
 	);
 
-	const setCodeValues = useCallback(
+	const setPropStatuses = useCallback(
 		(
 			nodePath: SequencePropsSubscriptionKey,
 			values: (
 				prev: CanUpdateSequencePropsResponse,
 			) => CanUpdateSequencePropsResponse,
 		) => {
-			setCodeValuesMapState((prev) => {
+			setPropStatusesMapState((prev) => {
 				const key = makeSequencePropsSubscriptionKey(nodePath);
 
 				const prevKey = prev[key];
@@ -294,11 +316,11 @@ export const SequenceManagerProvider: React.FC<{
 		[effectDragOverridesState],
 	);
 
-	const codeValuesContext: VisualModeCodeValues = useMemo(() => {
+	const propStatusesContext: VisualModePropStatuses = useMemo(() => {
 		return {
-			codeValues,
+			propStatuses,
 		};
-	}, [codeValues]);
+	}, [propStatuses]);
 
 	const dragOverridesContext: VisualModeDragOverrides = useMemo(() => {
 		return {
@@ -313,25 +335,31 @@ export const SequenceManagerProvider: React.FC<{
 			clearDragOverrides,
 			setEffectDragOverrides,
 			clearEffectDragOverrides,
-			setCodeValues,
+			setPropStatuses,
 		};
 	}, [
 		setDragOverrides,
 		clearDragOverrides,
 		setEffectDragOverrides,
 		clearEffectDragOverrides,
-		setCodeValues,
+		setPropStatuses,
 	]);
 
 	return (
-		<SequenceManager.Provider value={sequenceContext}>
-			<VisualModeCodeValuesContext.Provider value={codeValuesContext}>
-				<VisualModeDragOverridesContext.Provider value={dragOverridesContext}>
-					<VisualModeSettersContext.Provider value={settersContext}>
-						{children}
-					</VisualModeSettersContext.Provider>
-				</VisualModeDragOverridesContext.Provider>
-			</VisualModeCodeValuesContext.Provider>
-		</SequenceManager.Provider>
+		<SequenceManagerRefContext.Provider value={sequencesRef}>
+			<SequenceManager.Provider value={sequenceContext}>
+				<VisualModePropStatusesRefContext.Provider value={propStatusesRef}>
+					<VisualModePropStatusesContext.Provider value={propStatusesContext}>
+						<VisualModeDragOverridesContext.Provider
+							value={dragOverridesContext}
+						>
+							<VisualModeSettersContext.Provider value={settersContext}>
+								{children}
+							</VisualModeSettersContext.Provider>
+						</VisualModeDragOverridesContext.Provider>
+					</VisualModePropStatusesContext.Provider>
+				</VisualModePropStatusesRefContext.Provider>
+			</SequenceManager.Provider>
+		</SequenceManagerRefContext.Provider>
 	);
 };
