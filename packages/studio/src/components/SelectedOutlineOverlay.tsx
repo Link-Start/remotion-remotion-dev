@@ -32,7 +32,6 @@ import {
 	saveSequenceProps,
 	type SaveSequencePropChange,
 } from './Timeline/save-sequence-prop';
-import {getDecimalPlaces} from './Timeline/timeline-field-utils';
 import {
 	parseTranslate,
 	serializeTranslate,
@@ -62,9 +61,9 @@ type SelectedOutline = {
 	];
 };
 
-type UvCoordinate = readonly [number, number];
+export type UvCoordinate = readonly [number, number];
 
-type UvCoordinateFieldSchema = Extract<
+export type UvCoordinateFieldSchema = Extract<
 	SequenceFieldSchema,
 	{type: 'uv-coordinate'}
 >;
@@ -103,8 +102,9 @@ type SelectedOutlineContextMenuOpenHandler = () =>
 
 type SelectedOutlineTarget = {
 	readonly key: string;
+	readonly containsSelection: boolean;
 	readonly nodePathInfo: SequenceNodePathInfo;
-	readonly ref: React.RefObject<HTMLElement | null>;
+	readonly ref: React.RefObject<Element | null>;
 	readonly selected: boolean;
 	readonly selection: TimelineSelection;
 	readonly sequence: TSequence;
@@ -429,26 +429,14 @@ const clamp = (value: number, min: number, max: number): number => {
 	return Math.min(max, Math.max(min, value));
 };
 
-const roundToStep = (value: number, step: number | undefined): number => {
-	if (step === undefined || !Number.isFinite(step) || step <= 0) {
-		return value;
-	}
-
-	const decimals = getDecimalPlaces(step);
-	return Number((Math.round(value / step) * step).toFixed(decimals));
-};
-
-const constrainUv = (
+export function constrainUv(
 	value: UvCoordinate,
 	schema: UvCoordinateFieldSchema,
-): UvCoordinate => {
+): UvCoordinate {
 	const min = schema.min ?? -Infinity;
 	const max = schema.max ?? Infinity;
-	return [
-		clamp(roundToStep(value[0], schema.step), min, max),
-		clamp(roundToStep(value[1], schema.step), min, max),
-	];
-};
+	return [clamp(value[0], min, max), clamp(value[1], min, max)];
+}
 
 const rectToPoints = (
 	elementRect: DOMRect,
@@ -487,7 +475,7 @@ const quadToPoints = (
 };
 
 const getElementOutlinePoints = (
-	element: HTMLElement,
+	element: Element,
 	containerRect: DOMRect,
 ): SelectedOutline['points'] | null => {
 	const elementRect = element.getBoundingClientRect();
@@ -507,7 +495,17 @@ const getElementOutlinePoints = (
 	return quadToPoints(quad, containerRect);
 };
 
-const getSelectedSequenceKeys = (
+export const getSelectedSequenceKeys = (
+	selectedItems: readonly TimelineSelection[],
+): Set<string> => {
+	return new Set(
+		selectedItems
+			.filter((item) => item.type === 'sequence')
+			.map((item) => getTimelineSequenceSelectionKey(item.nodePathInfo)),
+	);
+};
+
+const getSequenceKeysContainingSelection = (
 	selectedItems: readonly TimelineSelection[],
 ): Set<string> => {
 	return new Set(
@@ -557,7 +555,11 @@ export const getSelectedEffectFieldsBySequenceKey = (
 			fieldKeys: new Set<string>(),
 		};
 
-		selectedFields.allFields = true;
+		if (item.type === 'sequence-effect') {
+			selectedFields.allFields = true;
+		} else {
+			selectedFields.fieldKeys.add(item.key);
+		}
 
 		effectsForSequence.set(item.i, selectedFields);
 		selectedEffects.set(sequenceKey, effectsForSequence);
@@ -1103,7 +1105,8 @@ const SelectedOutlinePolygon: React.FC<{
 	);
 	const drag = target?.drag ?? null;
 	const selected = target?.selected ?? false;
-	const visible = selected || hovered;
+	const containsSelection = target?.containsSelection ?? false;
+	const visible = containsSelection || hovered;
 
 	const onPointerDown = React.useCallback(
 		(event: React.PointerEvent<SVGPolygonElement>) => {
@@ -1655,7 +1658,7 @@ const SelectedUvHandleCircle: React.FC<{
 			strokeWidth={2}
 			vectorEffect="non-scaling-stroke"
 			pointerEvents="all"
-			cursor="move"
+			cursor="default"
 			onPointerDown={onPointerDown}
 		/>
 	);
@@ -1793,7 +1796,7 @@ const SelectedOutlineElement: React.FC<{
 				scale={scale}
 				target={target}
 			/>
-			{target?.selected || hovered
+			{target?.containsSelection || hovered
 				? (['top', 'right', 'bottom', 'left'] as const).map((edge) => (
 						<SelectedOutlineScaleEdgeLine
 							key={edge}
@@ -1810,27 +1813,45 @@ const SelectedOutlineElement: React.FC<{
 						/>
 					))
 				: null}
-			{target?.selected
-				? (() => {
-						const {uvHandles} = target;
-						return (
-							<>
-								<SelectedUvHandleConnectionLines
-									handles={uvHandles}
-									outline={outline}
-								/>
-								{uvHandles.map((handle) => (
-									<SelectedUvHandleCircle
-										key={`${handle.effectIndex}-${handle.fieldKey}`}
-										handle={handle}
-										onDraggingChange={onDraggingChange}
-										outline={outline}
-									/>
-								))}
-							</>
-						);
-					})()
-				: null}
+		</>
+	);
+};
+
+const SelectedOutlineUvHandleConnectionLayer: React.FC<{
+	readonly outline: SelectedOutline;
+	readonly target: SelectedOutlineTarget | undefined;
+}> = ({outline, target}) => {
+	if (!target?.containsSelection || target.uvHandles.length === 0) {
+		return null;
+	}
+
+	return (
+		<SelectedUvHandleConnectionLines
+			handles={target.uvHandles}
+			outline={outline}
+		/>
+	);
+};
+
+const SelectedOutlineUvHandleCircleLayer: React.FC<{
+	readonly onDraggingChange: (dragging: boolean) => void;
+	readonly outline: SelectedOutline;
+	readonly target: SelectedOutlineTarget | undefined;
+}> = ({onDraggingChange, outline, target}) => {
+	if (!target?.containsSelection || target.uvHandles.length === 0) {
+		return null;
+	}
+
+	return (
+		<>
+			{target.uvHandles.map((handle) => (
+				<SelectedUvHandleCircle
+					key={`${handle.effectIndex}-${handle.fieldKey}`}
+					handle={handle}
+					onDraggingChange={onDraggingChange}
+					outline={outline}
+				/>
+			))}
 		</>
 	);
 };
@@ -1870,6 +1891,8 @@ export const SelectedOutlineOverlay: React.FC<{
 		}
 
 		const selectedSequenceKeys = getSelectedSequenceKeys(selectedItems);
+		const sequenceKeysContainingSelection =
+			getSequenceKeysContainingSelection(selectedItems);
 		const selectedEffectsBySequenceKey =
 			getSelectedEffectFieldsBySequenceKey(selectedItems);
 		const clientId =
@@ -1886,6 +1909,7 @@ export const SelectedOutlineOverlay: React.FC<{
 			}
 
 			const selected = selectedSequenceKeys.has(key);
+			const containsSelection = sequenceKeysContainingSelection.has(key);
 			const nodePath = nodePathInfo.sequenceSubscriptionKey;
 			const {controls} = sequence;
 			const fieldSchema = controls?.schema[translateFieldKey];
@@ -1914,6 +1938,7 @@ export const SelectedOutlineOverlay: React.FC<{
 
 			return {
 				key,
+				containsSelection,
 				nodePathInfo,
 				ref: sequence.refForOutline,
 				selected,
@@ -1957,7 +1982,7 @@ export const SelectedOutlineOverlay: React.FC<{
 							schema: controls.schema,
 						}
 					: null,
-				uvHandles: selected
+				uvHandles: containsSelection
 					? getSelectedUvHandles({
 							propStatuses,
 							clientId,
@@ -2063,6 +2088,22 @@ export const SelectedOutlineOverlay: React.FC<{
 					onHoverChange={setHoveredOutlineKey}
 					onSelect={selectItem}
 					scale={scale}
+					target={targetsByKey.get(outline.key)}
+				/>
+			))}
+			{/* Keep UV controls above every transparent outline polygon so SVG hit-testing reaches the handles first. */}
+			{outlines.map((outline) => (
+				<SelectedOutlineUvHandleConnectionLayer
+					key={`${outline.key}-uv-connection-lines`}
+					outline={outline}
+					target={targetsByKey.get(outline.key)}
+				/>
+			))}
+			{outlines.map((outline) => (
+				<SelectedOutlineUvHandleCircleLayer
+					key={`${outline.key}-uv-handles`}
+					onDraggingChange={onDraggingChange}
+					outline={outline}
 					target={targetsByKey.get(outline.key)}
 				/>
 			))}

@@ -19,6 +19,10 @@ import {invert} from '../invert.js';
 import {linearProgressiveBlur} from '../linear-progressive-blur/index.js';
 import {lines} from '../lines.js';
 import {mirror} from '../mirror.js';
+import {
+	noiseDisplacement,
+	type NoiseDisplacementParams,
+} from '../noise-displacement.js';
 import {noise} from '../noise.js';
 import {pixelDissolve} from '../pixel-dissolve.js';
 import {rings} from '../rings.js';
@@ -102,6 +106,10 @@ test('@remotion/effects expose documentation links', () => {
 	expect(noise().definition.documentationLink).toBe(
 		'https://www.remotion.dev/docs/effects/noise',
 	);
+	expect(
+		noiseDisplacement({center: [0.5, 0.5], radius: 0.25}).definition
+			.documentationLink,
+	).toBe('https://www.remotion.dev/docs/effects/noise-displacement');
 	expect(rings().definition.documentationLink).toBe(
 		'https://www.remotion.dev/docs/effects/rings',
 	);
@@ -173,6 +181,9 @@ test('@remotion/effects expose API names as Studio labels', () => {
 	expect(dotGrid().definition.label).toBe('dotGrid()');
 	expect(mirror().definition.label).toBe('mirror()');
 	expect(noise().definition.label).toBe('noise()');
+	expect(
+		noiseDisplacement({center: [0.5, 0.5], radius: 0.25}).definition.label,
+	).toBe('noiseDisplacement()');
 	expect(rings().definition.label).toBe('rings()');
 	expect(saturation().definition.label).toBe('saturation()');
 	expect(scanlines().definition.label).toBe('scanlines()');
@@ -506,6 +517,12 @@ test('waves() rejects non-positive thickness', () => {
 	);
 });
 
+test('waves() rejects non-boolean maskToSourceAlpha', () => {
+	expect(() => waves({maskToSourceAlpha: 'yes' as unknown as boolean})).toThrow(
+		'"maskToSourceAlpha" must be a boolean',
+	);
+});
+
 test('waves() parameters produce distinct effect keys', () => {
 	const defaults = waves();
 	const colored = waves({colors: ['#ffffff', 'transparent']});
@@ -517,6 +534,7 @@ test('waves() parameters produce distinct effect keys', () => {
 	const stronger = waves({amplitude: 30});
 	const longer = waves({wavelength: 220});
 	const phased = waves({phase: 90});
+	const masked = waves({maskToSourceAlpha: true});
 
 	expect(
 		new Set([
@@ -530,8 +548,9 @@ test('waves() parameters produce distinct effect keys', () => {
 			stronger.effectKey,
 			longer.effectKey,
 			phased.effectKey,
+			masked.effectKey,
 		]).size,
-	).toBe(10);
+	).toBe(11);
 });
 
 test('zigzag() accepts default params', () => {
@@ -571,6 +590,12 @@ test('zigzag() rejects non-positive thickness', () => {
 	);
 });
 
+test('zigzag() rejects non-boolean maskToSourceAlpha', () => {
+	expect(() =>
+		zigzag({maskToSourceAlpha: 'yes' as unknown as boolean}),
+	).toThrow('"maskToSourceAlpha" must be a boolean');
+});
+
 test('zigzag() parameters produce distinct effect keys', () => {
 	const defaults = zigzag();
 	const colored = zigzag({colors: ['#ffffff', 'transparent']});
@@ -581,6 +606,7 @@ test('zigzag() parameters produce distinct effect keys', () => {
 	const shifted = zigzag({offset: 10});
 	const stronger = zigzag({amplitude: 30});
 	const longer = zigzag({wavelength: 220});
+	const masked = zigzag({maskToSourceAlpha: true});
 
 	expect(
 		new Set([
@@ -593,8 +619,9 @@ test('zigzag() parameters produce distinct effect keys', () => {
 			shifted.effectKey,
 			stronger.effectKey,
 			longer.effectKey,
+			masked.effectKey,
 		]).size,
-	).toBe(9);
+	).toBe(10);
 });
 
 test('whiteNoise() accepts default params', () => {
@@ -1200,6 +1227,14 @@ test('halftoneLinearGradient() rejects dotColor for source color mode', () => {
 	).toThrow('"dotColor" can only be set when "colorMode" is "solid"');
 });
 
+test('halftoneLinearGradient() rejects non-boolean maskToSourceAlpha', () => {
+	expect(() =>
+		halftoneLinearGradient({
+			maskToSourceAlpha: 'yes' as unknown as boolean,
+		}),
+	).toThrow('"maskToSourceAlpha" must be a boolean');
+});
+
 test('halftoneLinearGradient() parameters produce distinct effect keys', () => {
 	const defaultGradient = halftoneLinearGradient();
 	const shiftedFirstStop = halftoneLinearGradient({firstStopDotSize: 8});
@@ -1208,6 +1243,7 @@ test('halftoneLinearGradient() parameters produce distinct effect keys', () => {
 		firstStopPosition: [0.2, 0.5],
 	});
 	const sourceColor = halftoneLinearGradient({colorMode: 'source'});
+	const masked = halftoneLinearGradient({maskToSourceAlpha: true});
 
 	expect(
 		new Set([
@@ -1216,8 +1252,9 @@ test('halftoneLinearGradient() parameters produce distinct effect keys', () => {
 			shiftedSecondStop.effectKey,
 			shiftedFirstPosition.effectKey,
 			sourceColor.effectKey,
+			masked.effectKey,
 		]).size,
-	).toBe(5);
+	).toBe(6);
 });
 
 test('dotGrid() accepts default params', () => {
@@ -1378,6 +1415,140 @@ test('noise() parameters produce distinct effect keys', () => {
 	).toBe(4);
 });
 
+test('noiseDisplacement() accepts required params', () => {
+	expect(() =>
+		noiseDisplacement({
+			center: [0.5, 0.5],
+			radius: 0.2,
+		}),
+	).not.toThrow();
+});
+
+test('noiseDisplacement() accepts all params', () => {
+	expect(() =>
+		noiseDisplacement({
+			center: [0.4, 0.6],
+			radius: 0.25,
+			strength: 40,
+			seed: 3,
+			grainSize: 12,
+			passes: 8,
+			blur: 2,
+			feather: 0.4,
+			biasDirection: 225,
+			biasAmount: 0.2,
+		}),
+	).not.toThrow();
+});
+
+test('noiseDisplacement() rejects missing center', () => {
+	expect(() =>
+		noiseDisplacement({radius: 0.2} as NoiseDisplacementParams),
+	).toThrow('"center" must be a [number, number] tuple');
+});
+
+test('noiseDisplacement() rejects invalid center', () => {
+	expect(() =>
+		noiseDisplacement({
+			center: [0.5] as unknown as [number, number],
+			radius: 0.2,
+		}),
+	).toThrow('"center" must be a [number, number] tuple');
+});
+
+test('noiseDisplacement() rejects center outside unit range', () => {
+	expect(() => noiseDisplacement({center: [-0.1, 0.5], radius: 0.2})).toThrow(
+		'"center[0]" must be >= 0',
+	);
+	expect(() => noiseDisplacement({center: [0.5, 1.1], radius: 0.2})).toThrow(
+		'"center[1]" must be <= 1',
+	);
+});
+
+test('noiseDisplacement() rejects missing radius', () => {
+	expect(() =>
+		noiseDisplacement({
+			center: [0.5, 0.5],
+		} as unknown as NoiseDisplacementParams),
+	).toThrow('"radius" must be a finite number');
+});
+
+test('noiseDisplacement() rejects invalid radius', () => {
+	expect(() => noiseDisplacement({center: [0.5, 0.5], radius: 0})).toThrow(
+		'"radius" must be greater than 0',
+	);
+	expect(() => noiseDisplacement({center: [0.5, 0.5], radius: 1.1})).toThrow(
+		'"radius" must be <= 1',
+	);
+});
+
+test('noiseDisplacement() rejects invalid randomization params', () => {
+	expect(() =>
+		noiseDisplacement({center: [0.5, 0.5], radius: 0.2, grainSize: 0}),
+	).toThrow('"grainSize" must be greater than 0');
+	expect(() =>
+		noiseDisplacement({center: [0.5, 0.5], radius: 0.2, passes: 2.5}),
+	).toThrow('"passes" must be an integer');
+	expect(() =>
+		noiseDisplacement({center: [0.5, 0.5], radius: 0.2, passes: 13}),
+	).toThrow('"passes" must be <= 12');
+	expect(() =>
+		noiseDisplacement({center: [0.5, 0.5], radius: 0.2, feather: 1.1}),
+	).toThrow('"feather" must be <= 1');
+	expect(() =>
+		noiseDisplacement({center: [0.5, 0.5], radius: 0.2, biasAmount: -0.1}),
+	).toThrow('"biasAmount" must be >= 0');
+});
+
+test('noiseDisplacement() parameters produce distinct effect keys', () => {
+	const base = noiseDisplacement({center: [0.5, 0.5], radius: 0.2});
+	const moved = noiseDisplacement({center: [0.4, 0.5], radius: 0.2});
+	const wider = noiseDisplacement({center: [0.5, 0.5], radius: 0.3});
+	const stronger = noiseDisplacement({
+		center: [0.5, 0.5],
+		radius: 0.2,
+		strength: 48,
+	});
+	const seeded = noiseDisplacement({center: [0.5, 0.5], radius: 0.2, seed: 1});
+	const chunkier = noiseDisplacement({
+		center: [0.5, 0.5],
+		radius: 0.2,
+		grainSize: 16,
+	});
+	const smeared = noiseDisplacement({
+		center: [0.5, 0.5],
+		radius: 0.2,
+		passes: 8,
+	});
+	const blurred = noiseDisplacement({center: [0.5, 0.5], radius: 0.2, blur: 2});
+	const feathered = noiseDisplacement({
+		center: [0.5, 0.5],
+		radius: 0.2,
+		feather: 0.5,
+	});
+	const biased = noiseDisplacement({
+		center: [0.5, 0.5],
+		radius: 0.2,
+		biasDirection: 90,
+		biasAmount: 0.2,
+	});
+
+	expect(
+		new Set([
+			base.effectKey,
+			moved.effectKey,
+			wider.effectKey,
+			stronger.effectKey,
+			seeded.effectKey,
+			chunkier.effectKey,
+			smeared.effectKey,
+			blurred.effectKey,
+			feathered.effectKey,
+			biased.effectKey,
+		]).size,
+	).toBe(10);
+});
+
 test('saturation() accepts default params', () => {
 	expect(() => saturation()).not.toThrow();
 });
@@ -1531,6 +1702,12 @@ test('lines() rejects non-finite offset', () => {
 	);
 });
 
+test('lines() rejects non-boolean maskToSourceAlpha', () => {
+	expect(() => lines({maskToSourceAlpha: 'yes' as unknown as boolean})).toThrow(
+		'"maskToSourceAlpha" must be a boolean',
+	);
+});
+
 test('lines() parameters produce distinct effect keys', () => {
 	const defaultLines = lines();
 	const colored = lines({colors: ['#ffffff', 'transparent']});
@@ -1539,6 +1716,7 @@ test('lines() parameters produce distinct effect keys', () => {
 	const gapped = lines({gap: 24});
 	const angled = lines({angle: 45});
 	const shifted = lines({offset: 10});
+	const masked = lines({maskToSourceAlpha: true});
 
 	expect(
 		new Set([
@@ -1549,8 +1727,9 @@ test('lines() parameters produce distinct effect keys', () => {
 			gapped.effectKey,
 			angled.effectKey,
 			shifted.effectKey,
+			masked.effectKey,
 		]).size,
-	).toBe(7);
+	).toBe(8);
 });
 
 test('linearProgressiveBlur() accepts default params', () => {
@@ -1674,6 +1853,12 @@ test('rings() rejects non-finite offset', () => {
 	);
 });
 
+test('rings() rejects non-boolean maskToSourceAlpha', () => {
+	expect(() => rings({maskToSourceAlpha: 'yes' as unknown as boolean})).toThrow(
+		'"maskToSourceAlpha" must be a boolean',
+	);
+});
+
 test('rings() parameters produce distinct effect keys', () => {
 	const defaultRings = rings();
 	const colored = rings({colors: ['#ffffff', 'transparent']});
@@ -1681,6 +1866,7 @@ test('rings() parameters produce distinct effect keys', () => {
 	const thin = rings({thickness: 20});
 	const gapped = rings({gap: 24});
 	const shifted = rings({offset: 10});
+	const masked = rings({maskToSourceAlpha: true});
 
 	expect(
 		new Set([
@@ -1690,8 +1876,9 @@ test('rings() parameters produce distinct effect keys', () => {
 			thin.effectKey,
 			gapped.effectKey,
 			shifted.effectKey,
+			masked.effectKey,
 		]).size,
-	).toBe(6);
+	).toBe(7);
 });
 
 test('hue() accepts default params', () => {

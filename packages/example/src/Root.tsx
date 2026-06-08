@@ -116,6 +116,7 @@ import {WidthHeightSequences} from './Sequence/WidthHeightSequences';
 import CircleTest from './Shapes/CircleTest';
 import EllipseTest from './Shapes/EllipseTest';
 import RectTest from './Shapes/RectTest';
+import ShapeEffectsTest from './Shapes/ShapeEffectsTest';
 import StarTest from './Shapes/StarTest';
 import TriangleTest from './Shapes/TriangleTest';
 import {SimpleImg} from './SimpleImg';
@@ -184,6 +185,7 @@ import {BrowserTest} from './BrowserTest';
 import {EdgeBlur} from './EdgeBlur/EdgeBlur';
 import {EffectsTestbed} from './EffectsTestbed/EffectsTestbed';
 import {HalftoneGradient} from './EffectsTestbed/HalftoneGradient';
+import {NoiseDisplacementText} from './EffectsTestbed/NoiseDisplacementText';
 import {VideoEffectsFastRefresh} from './EffectsTestbed/VideoEffectsFastRefresh';
 import {Empty} from './Empty';
 import {JumpCuts, SAMPLE_SECTIONS, calculateMetadataJumpCuts} from './JumpCuts';
@@ -392,6 +394,14 @@ export const Index: React.FC = () => {
 					id="effect-copy-target"
 					component={EffectCopyTarget}
 					width={1080}
+					height={1080}
+					fps={30}
+					durationInFrames={120}
+				/>
+				<Composition
+					id="noise-displacement-text"
+					component={NoiseDisplacementText}
+					width={1920}
 					height={1080}
 					fps={30}
 					durationInFrames={120}
@@ -1861,6 +1871,14 @@ export const Index: React.FC = () => {
 				<Composition
 					id="star-test"
 					component={StarTest}
+					width={1200}
+					height={630}
+					fps={30}
+					durationInFrames={150}
+				/>
+				<Composition
+					id="shape-effects-test"
+					component={ShapeEffectsTest}
 					width={1200}
 					height={630}
 					fps={30}

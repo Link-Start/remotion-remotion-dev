@@ -10,6 +10,7 @@ import {
 } from 'remotion';
 import {NoReactInternals} from 'remotion/no-react';
 import {
+	constrainUv,
 	getOutlineSelectionInteraction,
 	getSelectedEffectFieldsBySequenceKey,
 	getSelectedOutlineDragChanges,
@@ -17,6 +18,7 @@ import {
 	getSelectedOutlineScaleDragChanges,
 	getSelectedOutlineScaleDragValues,
 	getSelectedOutlineScaleEdgeInfo,
+	getSelectedSequenceKeys,
 	getSequencesWithSelectableOutlines,
 	getUvCoordinateForPoint,
 	getUvHandleConnectionLines,
@@ -1066,6 +1068,28 @@ test('UV handle pointer position maps back to UV coordinates', () => {
 	expect(result[1]).toBeCloseTo(uv[1], 5);
 });
 
+test('UV coordinate constraints preserve precision despite schema step', () => {
+	expect(
+		constrainUv([0.123456, 0.987654], {
+			type: 'uv-coordinate',
+			default: [0.5, 0.5],
+			step: 0.01,
+		}),
+	).toEqual([0.123456, 0.987654]);
+});
+
+test('UV coordinate constraints still clamp to schema min and max', () => {
+	expect(
+		constrainUv([-0.123456, 1.987654], {
+			type: 'uv-coordinate',
+			default: [0.5, 0.5],
+			min: 0,
+			max: 1,
+			step: 0.01,
+		}),
+	).toEqual([0, 1]);
+});
+
 test('UV handle connection lines connect fields from schema metadata', () => {
 	const points = [
 		{x: 0, y: 0},
@@ -1185,8 +1209,8 @@ test('UV handles are requested for selected effect children', () => {
 			.get(getTimelineSequenceSelectionKey(sequenceNodePathInfo))
 			?.get(1),
 	).toEqual({
-		allFields: true,
-		fieldKeys: new Set(),
+		allFields: false,
+		fieldKeys: new Set(['rays']),
 	});
 
 	const selectedWholeEffects = getSelectedEffectFieldsBySequenceKey([
@@ -1201,6 +1225,32 @@ test('UV handles are requested for selected effect children', () => {
 		allFields: true,
 		fieldKeys: new Set(),
 	});
+});
+
+test('selected sequence keys only include exact sequence selections', () => {
+	const sequenceNodePathInfo = makeNodePathInfo(['body', 0], []);
+	const effectPropNodePathInfo = makeNodePathInfo(
+		['body', 0],
+		['effects', '1', 'rays'],
+	);
+	const sequenceKey = getTimelineSequenceSelectionKey(sequenceNodePathInfo);
+
+	expect(
+		getSelectedSequenceKeys([
+			{
+				type: 'sequence-effect-prop',
+				nodePathInfo: effectPropNodePathInfo,
+				i: 1,
+				key: 'rays',
+			},
+		]).has(sequenceKey),
+	).toBe(false);
+
+	expect(
+		getSelectedSequenceKeys([
+			{type: 'sequence', nodePathInfo: sequenceNodePathInfo},
+		]).has(sequenceKey),
+	).toBe(true);
 });
 
 test('Cmd+A selection only targets selectable timeline sequences', () => {
@@ -2018,6 +2068,36 @@ test('Shift+click with no matching anchor falls back to single selection', () =>
 	).toEqual({
 		selectedItems: [rowA],
 		anchor: rowA,
+	});
+});
+
+test('Selecting an easing segment replaces keyframe selection with the new type', () => {
+	const keyframe = {
+		type: 'keyframe' as const,
+		nodePathInfo: makeNodePathInfo(['body', 0], []),
+		frame: 10,
+	};
+	const easing = {
+		type: 'easing' as const,
+		nodePathInfo: makeNodePathInfo(['body', 0], []),
+		fromFrame: 10,
+		toFrame: 20,
+		segmentIndex: 0,
+	};
+
+	expect(
+		getTimelineSelectionAfterInteraction({
+			currentState: {
+				selectedItems: [keyframe],
+				anchor: keyframe,
+			},
+			clickedItem: easing,
+			interaction: {shiftKey: false, toggleKey: false},
+			allSelectableItems: [keyframe, easing],
+		}),
+	).toEqual({
+		selectedItems: [easing],
+		anchor: easing,
 	});
 });
 
